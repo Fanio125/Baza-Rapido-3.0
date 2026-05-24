@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
@@ -75,29 +76,31 @@ const App: React.FC = () => {
       <QueryClientProvider client={queryClient}>
         <APIProvider apiKey={GOOGLE_MAPS_API_KEY} version="weekly">
           <AuthProvider>
-            <Router>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Routes>
-                  <Route element={<MainLayout />}>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/rides" element={<RideResults />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/history" element={<UserHistory />} />
-                    <Route path="/statistics" element={<Statistics />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/edit-profile" element={<EditProfile />} />
-                    <Route path="/languages" element={<Languages />} />
-                    <Route path="/cities" element={<Cities />} />
-                    <Route path="/terms" element={<Terms />} />
-                    <Route path="/privacy" element={<Privacy />} />
-                    <Route path="/version" element={<Version />} />
-                  </Route>
-                  
-                  {/* Fallback */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </Suspense>
-            </Router>
+            <ThemeProvider>
+              <Router>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Routes>
+                    <Route element={<MainLayout />}>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/rides" element={<RideResults />} />
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="/history" element={<UserHistory />} />
+                      <Route path="/statistics" element={<Statistics />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/edit-profile" element={<EditProfile />} />
+                      <Route path="/languages" element={<Languages />} />
+                      <Route path="/cities" element={<Cities />} />
+                      <Route path="/terms" element={<Terms />} />
+                      <Route path="/privacy" element={<Privacy />} />
+                      <Route path="/version" element={<Version />} />
+                    </Route>
+                    
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Suspense>
+              </Router>
+            </ThemeProvider>
           </AuthProvider>
         </APIProvider>
       </QueryClientProvider>

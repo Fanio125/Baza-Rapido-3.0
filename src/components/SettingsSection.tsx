@@ -11,12 +11,15 @@ import {
   FileText,
   Shield,
   Tag,
-  ChevronRight
+  ChevronRight,
+  Moon
 } from 'lucide-react';
 import type { ViewState } from '../types';
 import DeleteAccountModal from './DeleteAccountModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
+import { cn } from '../lib/utils';
 
 interface SettingsSectionProps {
   onNavigate: (view: ViewState) => void;
@@ -25,6 +28,7 @@ interface SettingsSectionProps {
 export default function SettingsSection({ onNavigate }: SettingsSectionProps) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { user, signOut, isDemo } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const handleDeleteAccount = async () => {
     try {
@@ -84,10 +88,12 @@ export default function SettingsSection({ onNavigate }: SettingsSectionProps) {
       throw err;
     }
   };
+
   const sections = [
     {
       items: [
         { icon: User, label: 'Editar perfil', description: 'Nome, foto, número de telefone', color: 'text-blue-500', bg: 'bg-blue-50', view: 'edit-profile' as ViewState },
+        { icon: Moon, label: 'Modo escuro', description: theme === 'dark' ? 'Ativado' : 'Desativado', color: 'text-indigo-500', bg: 'bg-indigo-50', isThemeToggle: true },
         { icon: Bell, label: 'Notificações', description: 'Ativar ou desativar alertas', color: 'text-amber-500', bg: 'bg-amber-50' },
         { icon: Globe, label: 'Idioma', description: 'Português (AO)', color: 'text-emerald-500', bg: 'bg-emerald-50', view: 'languages' as ViewState },
         { icon: MapPin, label: 'Cidade', description: 'Luanda, Angola', color: 'text-purple-500', bg: 'bg-purple-50', view: 'cities' as ViewState },
@@ -137,7 +143,9 @@ export default function SettingsSection({ onNavigate }: SettingsSectionProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: (sIdx * 0.1) + (iIdx * 0.05) }}
                   onClick={() => {
-                    if (item.isDestructive) {
+                    if (item.isThemeToggle) {
+                      toggleTheme();
+                    } else if (item.isDestructive) {
                       setIsDeleteModalOpen(true);
                     } else if (item.view) {
                       onNavigate(item.view);
@@ -160,7 +168,17 @@ export default function SettingsSection({ onNavigate }: SettingsSectionProps) {
                       )}
                     </div>
                   </div>
-                  {!item.isDestructive && (
+                  {item.isThemeToggle ? (
+                    <div className={cn(
+                      "w-11 h-6 rounded-full p-0.5 transition-colors duration-300",
+                      theme === 'dark' ? "bg-primary" : "bg-gray-200"
+                    )}>
+                      <div className={cn(
+                        "w-5 h-5 rounded-full bg-white shadow-md transform duration-300",
+                        theme === 'dark' ? "translate-x-5" : "translate-x-0"
+                      )} />
+                    </div>
+                  ) : !item.isDestructive && (
                     <ChevronRight size={16} className="text-gray-300 group-hover:text-primary transition-colors" />
                   )}
                 </motion.button>

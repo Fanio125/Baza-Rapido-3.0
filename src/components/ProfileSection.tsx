@@ -360,15 +360,15 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
         
         <div className="grid grid-cols-3 gap-4 mt-8">
           <div className="text-center">
-            <div className="text-sm font-bold text-white">124</div>
+            <div className="text-sm font-bold text-orange-500">124</div>
             <div className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Buscas</div>
           </div>
           <div className="text-center border-x border-white/10">
-            <div className="text-sm font-bold text-white">42</div>
+            <div className="text-sm font-bold text-orange-500">42</div>
             <div className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Economia</div>
           </div>
           <div className="text-center">
-            <div className="text-sm font-bold text-white">4.9</div>
+            <div className="text-sm font-bold text-orange-500">4.9</div>
             <div className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Avaliação</div>
           </div>
         </div>

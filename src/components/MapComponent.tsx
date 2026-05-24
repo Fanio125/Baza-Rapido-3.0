@@ -1,6 +1,63 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Map, useMap, useMapsLibrary, Marker } from '@vis.gl/react-google-maps';
 import { Loader2, AlertTriangle, ShieldCheck, MapPin, CheckCircle2 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+
+const darkMapStyle = [
+  { elementType: "geometry", stylers: [{ color: "#242424" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#242424" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#747474" }] },
+  {
+    featureType: "administrative",
+    elementType: "geometry",
+    stylers: [{ color: "#505050" }]
+  },
+  {
+    featureType: "administrative.country",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#9e9e9e" }]
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#757575" }]
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry",
+    stylers: [{ color: "#181818" }]
+  },
+  {
+    featureType: "poi.park",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#616161" }]
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#303030" }]
+  },
+  {
+    featureType: "road.arterial",
+    elementType: "geometry",
+    stylers: [{ color: "#373737" }]
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#3c3c3c" }]
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#17171a" }]
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#515151" }]
+  }
+];
 
 interface MapComponentProps {
   origin: google.maps.LatLngLiteral;
@@ -16,6 +73,7 @@ interface RouteLayerProps {
 }
 
 export default function MapComponent({ origin, destination, onRouteCalculated }: MapComponentProps) {
+  const { theme } = useTheme();
   const [hasAuthError, setHasAuthError] = useState(false);
   const [hasLegacyApiError, setHasLegacyApiError] = useState(false);
   const [hasBillingError, setHasBillingError] = useState(false);
@@ -213,6 +271,7 @@ export default function MapComponent({ origin, destination, onRouteCalculated }:
           defaultZoom={13}
           disableDefaultUI={true}
           className="w-full h-full"
+          styles={theme === 'dark' ? darkMapStyle : []}
         >
           <RouteLayer 
             origin={origin} 

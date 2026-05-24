@@ -109,7 +109,7 @@ const RideResults: React.FC = () => {
             </div>
           </div>
 
-          <ComparisonList results={results} />
+          <ComparisonList results={results} origin={origin} destination={destination} distance={routeInfo?.distance} />
         </>
       )}
     </motion.div>
