@@ -39,7 +39,7 @@ interface MenuItem {
 }
 
 export default function ProfileSection({ user, onNavigate }: ProfileSectionProps) {
-  const { signInAsDemo } = useAuth();
+  const { signInAsDemo, signOut } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -96,43 +96,7 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
         });
         
         if (error) {
-          const errMsg = error.message.toLowerCase();
-          if (errMsg.includes('invalid login credentials') || errMsg.includes('invalid_id_token') || errMsg.includes('invalid_credentials')) {
-            console.log("Credenciais inválidas no login. Tentando registar o utilizador de forma transparente...");
-            try {
-              const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                email: cleanEmail,
-                password: cleanPassword,
-                options: {
-                  data: {
-                    full_name: cleanEmail.split('@')[0],
-                    phone: '900000000',
-                  }
-                }
-              });
-
-              if (signUpError) {
-                console.warn("Auto-registo falhou, usando sessão de visitante com o mesmo email como fallback:", signUpError.message);
-                signInAsDemo(cleanEmail.split('@')[0], '900000000', cleanEmail);
-                return;
-              }
-
-              if (signUpData.user && !signUpData.session) {
-                console.log("Auto-registo efetuado com sucesso. Iniciando sessão como utilizador local para bypassar confirmação de link.");
-                signInAsDemo(cleanEmail.split('@')[0], '900000000', cleanEmail);
-                return;
-              }
-
-              console.log("Auto-registo e login realizados com sucesso!");
-              return;
-            } catch (signupErr) {
-              console.warn("Exceção no auto-registo, caindo de volta para convidado demo:", signupErr);
-              signInAsDemo(cleanEmail.split('@')[0], '900000000', cleanEmail);
-              return;
-            }
-          }
-
-          console.error("Erro Supabase (Login):", {
+          console.log("Erro Supabase (Login):", {
             message: error.message,
             status: error.status,
             name: error.name
@@ -180,7 +144,7 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
       // Log detalhado e explícito para evitar {} no console
       const errorDetails = err instanceof Error ? err.message : String(err);
       
-      console.error(`Falha detalhada em ${mode}:`, errorDetails);
+      console.log(`Falha detalhada em ${mode}:`, errorDetails);
       
       let msg = 'Ocorreu um erro inesperado.';
       let details = '';
@@ -200,8 +164,8 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
       const lowerMsg = msg.toLowerCase();
       let isTranslated = false;
 
-      if (lowerMsg.includes('invalid login credentials') || lowerMsg.includes('invalid_credentials')) {
-        msg = 'Email ou palavra-passe incorretos. Por favor, verifica as tuas credenciais.';
+      if (lowerMsg.includes('invalid login credentials') || lowerMsg.includes('invalid_credentials') || lowerMsg.includes('invalid credentials')) {
+        msg = 'Senha incorreta.';
         isTranslated = true;
       } else if (lowerMsg.includes('rate limit')) {
         msg = 'Demasiadas tentativas num curto período de tempo. Por favor, aguarda uns minutos.';
@@ -232,7 +196,7 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
   };
 
   if (!user) {
@@ -364,8 +328,17 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-all duration-700" />
         <div className="relative z-10 flex justify-between items-center gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white ring-4 ring-white/10 shadow-lg group-hover:rotate-6 transition-transform">
-              <UserIcon size={32} />
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white ring-4 ring-white/10 shadow-lg group-hover:scale-105 transition-all overflow-hidden">
+              {user.user_metadata?.avatar_url || user.user_metadata?.photo_url ? (
+                <img 
+                  src={user.user_metadata.avatar_url || user.user_metadata.photo_url} 
+                  alt="Foto de perfil" 
+                  className="w-full h-full object-cover animate-in fade-in duration-300"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <UserIcon size={32} />
+              )}
             </div>
             <div>
               <h3 className="text-xl font-bold text-orange-500 font-display truncate max-w-[170px]">

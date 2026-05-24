@@ -8,7 +8,13 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   signInAsDemo: (fullName?: string, phone?: string, email?: string) => void;
-  updateUserMetadata: (metadata: { full_name?: string; phone?: string; city?: string }) => Promise<void>;
+  updateUserMetadata: (metadata: { 
+    full_name?: string; 
+    phone?: string; 
+    city?: string; 
+    avatar_url?: string; 
+    photo_url?: string;
+  }) => Promise<void>;
   isDemo: boolean;
 }
 
@@ -94,7 +100,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(demoSession);
   };
 
-  const updateUserMetadata = async (metadata: { full_name?: string; phone?: string; city?: string }) => {
+  const updateUserMetadata = async (metadata: { 
+    full_name?: string; 
+    phone?: string; 
+    city?: string;
+    avatar_url?: string;
+    photo_url?: string;
+  }) => {
     if (isDemo) {
       const updatedUser = {
         ...user,
