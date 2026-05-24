@@ -1,0 +1,8 @@
+{
+  "name": "Baza Rápido 3.0",
+  "description": "Plataforma inteligente de comparação de preços de táxi em Luanda, Angola. Compare Yango, Bolt, Uber, inDrive e outros em segundos.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
