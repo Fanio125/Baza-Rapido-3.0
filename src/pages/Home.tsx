@@ -13,6 +13,11 @@ const Home: React.FC = () => {
   const [selectedDestinationAddr, setSelectedDestinationAddr] = useState("");
 
   const handleCompare = (start: Location, end: Location) => {
+    if (!user) {
+      // Redirect to login page if user is not authenticated
+      navigate('/profile', { state: { from: '/', origin: start, destination: end } });
+      return;
+    }
     // Navigate to results with state
     navigate('/rides', { state: { origin: start, destination: end } });
   };

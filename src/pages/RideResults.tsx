@@ -7,8 +7,10 @@ import MapComponent from '../components/MapComponent';
 import { ComparisonResult, Location as TLocation } from '../types';
 import { rideService } from '../services/rideService';
 import { logger } from '../utils/logger';
+import { useAuth } from '../contexts/AuthContext';
 
 const RideResults: React.FC = () => {
+  const { user } = useAuth();
   const { state } = useLocation();
   const navigate = useNavigate();
   const [results, setResults] = useState<ComparisonResult[]>([]);
@@ -19,12 +21,16 @@ const RideResults: React.FC = () => {
   const destination = state?.destination as TLocation;
 
   useEffect(() => {
+    if (!user) {
+      navigate('/profile');
+      return;
+    }
     if (!origin || !destination) {
       logger.warn('RideResults accessed without origin or destination state');
       navigate('/');
       return;
     }
-  }, [origin, destination, navigate]);
+  }, [origin, destination, navigate, user]);
 
   if (!origin || !destination) {
     return null;

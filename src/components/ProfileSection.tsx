@@ -39,7 +39,7 @@ interface MenuItem {
 }
 
 export default function ProfileSection({ user, onNavigate }: ProfileSectionProps) {
-  const { signInAsDemo, signOut } = useAuth();
+  const { signOut } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -300,21 +300,6 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
             className="w-full text-center text-xs font-bold text-gray-400 hover:text-primary transition-colors py-1"
           >
             {mode === 'login' ? 'Não tens conta? Cria uma aqui' : 'Já tens conta? Entra aqui'}
-          </button>
-
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-gray-100"></div>
-            <span className="flex-shrink mx-4 text-[10px] font-black uppercase tracking-widest text-gray-300">ou</span>
-            <div className="flex-grow border-t border-gray-100"></div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => signInAsDemo('Visitante Baza Rápido', '923456789', 'visitante@bazarapido.com')}
-            className="w-full h-14 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-primary active:scale-95 transition-all rounded-2xl font-bold flex items-center justify-center gap-2 border border-dashed border-gray-200"
-          >
-            <ShieldCheck size={18} className="text-primary animate-pulse" />
-            <span>Entrar como Convidado (Demo)</span>
           </button>
         </form>
       </div>

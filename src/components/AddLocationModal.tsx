@@ -12,6 +12,8 @@ interface AddLocationModalProps {
   onAdd: (name: string, address: string, type: SavedLocationType, lat?: number, lng?: number) => Promise<void>;
   onLoginRedirect: () => void;
   user: any;
+  locationToEdit?: any;
+  onEdit?: (id: string, name: string, address: string, type: SavedLocationType, lat?: number, lng?: number) => Promise<void>;
 }
 
 const POPULAR_LUANDA_PLACES = [
@@ -48,7 +50,7 @@ interface PlaceSuggestion {
   coords?: google.maps.LatLngLiteral;
 }
 
-export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedirect, user }: AddLocationModalProps) {
+export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedirect, user, locationToEdit, onEdit }: AddLocationModalProps) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number, lng: number } | null>(null);
@@ -59,6 +61,21 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [hasMapsError, setHasMapsError] = useState(false);
+
+  useEffect(() => {
+    if (locationToEdit) {
+      setName(locationToEdit.name);
+      setAddress(locationToEdit.address);
+      setType(locationToEdit.type);
+      setSelectedCoords({ lat: locationToEdit.latitude, lng: locationToEdit.longitude });
+    } else {
+      setName('');
+      setAddress('');
+      setType('other');
+      setSelectedCoords(null);
+    }
+    setStatus(null);
+  }, [locationToEdit, isOpen]);
 
   const placesLib = useMapsLibrary('places');
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
@@ -302,15 +319,27 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
         finalCoords = getFallbackCoordinates(address);
       }
 
-      await onAdd(
-        name, 
-        address, 
-        type, 
-        finalCoords?.lat,
-        finalCoords?.lng
-      );
+      if (locationToEdit && onEdit) {
+        await onEdit(
+          locationToEdit.id,
+          name,
+          address,
+          type,
+          finalCoords?.lat,
+          finalCoords?.lng
+        );
+        setStatus({ type: 'success', message: 'Local atualizado com sucesso!' });
+      } else {
+        await onAdd(
+          name, 
+          address, 
+          type, 
+          finalCoords?.lat,
+          finalCoords?.lng
+        );
+        setStatus({ type: 'success', message: 'Local guardado com sucesso!' });
+      }
       
-      setStatus({ type: 'success', message: 'Local guardado com sucesso!' });
       setName('');
       setAddress('');
       setType('other');
@@ -320,7 +349,7 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
         onClose();
       }, 1500);
     } catch (error: any) {
-      console.error('Error adding location:', error);
+      console.error('Error saving location:', error);
       setStatus({ 
         type: 'error', 
         message: error.message || 'Erro ao guardar local. Verifica a tua ligação.' 
@@ -358,7 +387,7 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
             <div className="p-6">
               <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
                 <h3 className="text-xl font-black font-display tracking-tight text-gray-900">
-                  Adicionar Local
+                  {locationToEdit ? 'Editar Local' : 'Adicionar Local'}
                 </h3>
                 <button onClick={onClose} className="p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-gray-900">
                   <X size={20} />
@@ -532,7 +561,7 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
                       ) : (
                         <Check size={20} />
                       )}
-                      {isSubmitting ? 'A Guardar...' : 'Guardar Local'}
+                      {isSubmitting ? 'A Guardar...' : locationToEdit ? 'Atualizar Local' : 'Guardar Local'}
                     </button>
                   )}
                 </div>

@@ -19,6 +19,7 @@ import { cn } from '../lib/utils';
 import type { ComparisonResult, Location as TLocation } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { rideHistoryService, RideHistory } from '../services/rideHistoryService';
+import { triggerDeepLink } from '../utils/deeplinks';
 
 interface ComparisonListProps {
   results: ComparisonResult[];
@@ -80,6 +81,8 @@ export default function ComparisonList({ results, origin, destination, distance 
     try {
       const saved = await rideHistoryService.saveRide(rideData, isDemo);
       setActiveSimRide(saved);
+      // Trigger native/official mobile deep link redirection (with auto-fallback to Web if not installed)
+      triggerDeepLink(item.appId, origin, destination);
     } catch (err) {
       console.error('Erro ao iniciar corrida simulada:', err);
       setMessage({ type: 'error', text: 'Não foi possível iniciar a viagem. Tenta novamente.' });
