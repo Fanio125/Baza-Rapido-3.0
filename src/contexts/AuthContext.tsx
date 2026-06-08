@@ -49,6 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         setLoading(false);
       }
+    }).catch(err => {
+      console.warn("Supabase initial session fetch failed (offline or blocked):", err);
+      if (!localStorage.getItem('demo_user')) {
+        setLoading(false);
+      }
     });
 
     // Listen for auth changes

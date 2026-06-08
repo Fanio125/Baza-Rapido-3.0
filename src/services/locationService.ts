@@ -27,9 +27,13 @@ export const locationService = {
         // ignore
       }
     }
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) throw new Error('Utilizador não autenticado');
-    return user;
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) throw new Error('Utilizador não autenticado');
+      return user;
+    } catch (err) {
+      throw new Error('Utilizador não autenticado');
+    }
   },
 
   async getSavedLocations(userId: string) {
@@ -37,17 +41,22 @@ export const locationService = {
     if (userId === 'demo-user-id') {
       return getDemoLocations();
     }
-    const { data, error } = await supabase
-      .from('saved_locations')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('saved_locations')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching saved locations:', error);
+      if (error) {
+        console.error('Error fetching saved locations:', error);
+        return [];
+      }
+      return data as SavedLocation[];
+    } catch (err) {
+      console.warn('Network error fetching locations from Supabase:', err);
       return [];
     }
-    return data as SavedLocation[];
   },
 
   async addSavedLocation(location: Omit<SavedLocation, 'id' | 'created_at' | 'user_id'>) {
@@ -79,29 +88,34 @@ export const locationService = {
 
     console.log('Attempting to save location to Supabase for user:', user.id);
     
-    const { data, error, status, statusText } = await supabase
-      .from('saved_locations')
-      .insert([{
-        ...location,
-        user_id: user.id
-      }])
-      .select()
-      .single();
+    try {
+      const { data, error, status, statusText } = await supabase
+        .from('saved_locations')
+        .insert([{
+          ...location,
+          user_id: user.id
+        }])
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Supabase Error details:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-        status,
-        statusText
-      });
-      throw error;
+      if (error) {
+        console.error('Supabase Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          status,
+          statusText
+        });
+        throw error;
+      }
+      
+      console.log('Location saved successfully:', data);
+      return data as SavedLocation;
+    } catch (err) {
+      console.warn('Network or database exception in addSavedLocation:', err);
+      throw err;
     }
-    
-    console.log('Location saved successfully:', data);
-    return data as SavedLocation;
   },
 
   async updateSavedLocation(id: string, location: Partial<SavedLocation>) {
@@ -122,15 +136,20 @@ export const locationService = {
       return found;
     }
 
-    const { data, error } = await supabase
-      .from('saved_locations')
-      .update(location)
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('saved_locations')
+        .update(location)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) throw error;
-    return data as SavedLocation;
+      if (error) throw error;
+      return data as SavedLocation;
+    } catch (err) {
+      console.warn('Network or database exception in updateSavedLocation:', err);
+      throw err;
+    }
   },
 
   async deleteSavedLocation(id: string) {
@@ -144,11 +163,16 @@ export const locationService = {
       return;
     }
 
-    const { error } = await supabase
-      .from('saved_locations')
-      .delete()
-      .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('saved_locations')
+        .delete()
+        .eq('id', id);
 
-    if (error) throw error;
+      if (error) throw error;
+    } catch (err) {
+      console.warn('Network or database exception in deleteSavedLocation:', err);
+      throw err;
+    }
   }
 };

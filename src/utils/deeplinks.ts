@@ -105,6 +105,17 @@ export function triggerDeepLink(
 
   const normalizedAppId = appId.toLowerCase();
 
+  // Log and track request frequency in localStorage
+  try {
+    const countKey = 'ride_app_requests_count';
+    const currentCountsStr = localStorage.getItem(countKey);
+    const currentCounts = currentCountsStr ? JSON.parse(currentCountsStr) : {};
+    currentCounts[normalizedAppId] = (currentCounts[normalizedAppId] || 0) + 1;
+    localStorage.setItem(countKey, JSON.stringify(currentCounts));
+  } catch (error) {
+    console.error('Error updating ride app request counts in localStorage:', error);
+  }
+
   switch (normalizedAppId) {
     case 'yango':
       abrirYango(startLat, startLon, endLat, endLon);
