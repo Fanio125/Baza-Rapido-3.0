@@ -337,7 +337,7 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
           
           <button
             onClick={() => onNavigate('edit-profile')}
-            className="px-4 py-2 bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-all rounded-xl text-xs font-bold border border-white/5 shadow-sm"
+            className="px-4 py-2 bg-neutral-900 text-gray-200 hover:bg-black hover:text-white active:scale-95 transition-all rounded-xl text-xs font-bold border border-neutral-800 shadow-sm"
           >
             Editar
           </button>
