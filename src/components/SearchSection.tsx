@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Search, Navigation, ArrowRight, Loader2 } from 'lucide-react';
+import { MapPin, Search, Navigation, ArrowRight, Loader2, Compass } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '../lib/utils';
 import type { Location } from '../types';
@@ -8,6 +8,7 @@ import { useMapsLibrary } from '@vis.gl/react-google-maps';
 interface SearchSectionProps {
   onCompare: (origin: Location, destination: Location) => void;
   initialDestination?: string;
+  initialOrigin?: string;
 }
 
 const POPULAR_LUANDA_PLACES = [
@@ -44,7 +45,7 @@ interface PlaceSuggestion {
   coords?: google.maps.LatLngLiteral;
 }
 
-export default function SearchSection({ onCompare, initialDestination = "" }: SearchSectionProps) {
+export default function SearchSection({ onCompare, initialDestination = "", initialOrigin = "" }: SearchSectionProps) {
   const [originText, setOriginText] = useState<string>("Minha localização atual");
   const [originCoords, setOriginCoords] = useState<google.maps.LatLngLiteral | null>(null);
   const [destinationText, setDestinationText] = useState<string>(initialDestination);
@@ -57,8 +58,80 @@ export default function SearchSection({ onCompare, initialDestination = "" }: Se
   const [isSearchingDest, setIsSearchingDest] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [hasMapsError, setHasMapsError] = useState(false);
+  const [isLocatingOrigin, setIsLocatingOrigin] = useState(false);
+  const [isLocatingDest, setIsLocatingDest] = useState(false);
   
   const placesLib = useMapsLibrary('places');
+
+  const detectAndGeocode = (isOrigin: boolean) => {
+    const setLoading = isOrigin ? setIsLocatingOrigin : setIsLocatingDest;
+    setLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        if (isOrigin) {
+          setOriginCoords(coords);
+        } else {
+          setDestinationCoords(coords);
+        }
+
+        if ((window as any).google?.maps?.Geocoder) {
+          try {
+            const geocoder = new (window as any).google.maps.Geocoder();
+            geocoder.geocode({ location: coords }, (results: any, status: any) => {
+              setLoading(false);
+              if (status === 'OK' && results && results[0]) {
+                const formatted = results[0].formatted_address;
+                if (isOrigin) {
+                  setOriginText(formatted);
+                } else {
+                  setDestinationText(formatted);
+                }
+              } else {
+                const fallback = `Localização Atual (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`;
+                if (isOrigin) {
+                  setOriginText(fallback);
+                } else {
+                  setDestinationText(fallback);
+                }
+              }
+            });
+          } catch (err) {
+            console.warn("Error raw geocode execution:", err);
+            setLoading(false);
+            const fallback = `Localização Atual (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`;
+            if (isOrigin) {
+              setOriginText(fallback);
+                } else {
+                  setDestinationText(fallback);
+                }
+              }
+        } else {
+          setLoading(false);
+          const fallback = `Localização Atual (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`;
+          if (isOrigin) {
+            setOriginText(fallback);
+          } else {
+            setDestinationText(fallback);
+          }
+        }
+      },
+      (err) => {
+        console.warn("Geolocation failure inside helper:", err);
+        setLoading(false);
+        const fallbackCoords = { lat: -8.8390, lng: 13.2345 };
+        if (isOrigin) {
+          setOriginCoords(fallbackCoords);
+          setOriginText("Luanda, Angola");
+        } else {
+          setDestinationCoords(fallbackCoords);
+          setDestinationText("Luanda, Angola");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   useEffect(() => {
     const handleAuthFailure = () => {
@@ -118,6 +191,12 @@ export default function SearchSection({ onCompare, initialDestination = "" }: Se
     }
   }, [initialDestination]);
 
+  useEffect(() => {
+    if (initialOrigin) {
+      setOriginText(initialOrigin);
+    }
+  }, [initialOrigin]);
+
   // Hide suggestions when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -137,16 +216,60 @@ export default function SearchSection({ onCompare, initialDestination = "" }: Se
     if (originText === "Minha localização atual") {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setOriginCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setOriginCoords(coords);
+          
+          if ((window as any).google?.maps?.Geocoder) {
+            try {
+              const geocoder = new (window as any).google.maps.Geocoder();
+              geocoder.geocode({ location: coords }, (results: any, status: any) => {
+                if (status === 'OK' && results && results[0]) {
+                  setOriginText(results[0].formatted_address);
+                }
+              });
+            } catch (err) {
+              console.warn("Failed reverse geocode for current location on load:", err);
+            }
+          }
         },
         (err) => {
           console.warn("Geolocation error:", err);
-          // Fallback coordinate for Luanda if geolocation fails
-          setOriginCoords({ lat: -8.8390, lng: 13.2345 });
+          const fallback = { lat: -8.8390, lng: 13.2345 };
+          setOriginCoords(fallback);
+          if ((window as any).google?.maps?.Geocoder) {
+            try {
+              const geocoder = new (window as any).google.maps.Geocoder();
+              geocoder.geocode({ location: fallback }, (results: any, status: any) => {
+                if (status === 'OK' && results && results[0]) {
+                  setOriginText(results[0].formatted_address);
+                }
+              });
+            } catch (err) {
+              console.warn("Failed reserve geocoding on fallback load:", err);
+            }
+          }
         }
       );
     }
-  }, [originText]);
+  }, [originText, placesLib]);
+
+  // Retenta geocodificar se o Maps carregar depois de termos as coordenadas
+  useEffect(() => {
+    if (originCoords && (originText === "Minha localização atual" || originText.startsWith("Localização"))) {
+      if ((window as any).google?.maps?.Geocoder) {
+        try {
+          const geocoder = new (window as any).google.maps.Geocoder();
+          geocoder.geocode({ location: originCoords }, (results: any, status: any) => {
+            if (status === 'OK' && results && results[0]) {
+              setOriginText(results[0].formatted_address);
+            }
+          });
+        } catch (err) {
+          console.warn("Delayed geocode error:", err);
+        }
+      }
+    }
+  }, [originCoords, placesLib]);
 
   const fetchSuggestions = async (query: string, isOrigin: boolean) => {
     if (query.length < 3) {
@@ -176,8 +299,9 @@ export default function SearchSection({ onCompare, initialDestination = "" }: Se
     // 1. Primariamente, tenta usar o novo Places API (New) que funciona perfeitamente com a chave
     if (placesLib && placesLib.Place) {
       try {
+        const searchQuery = query.toLowerCase().includes('angola') ? query : `${query}, Luanda, Angola`;
         const response = await placesLib.Place.searchByText({
-          textQuery: query,
+          textQuery: searchQuery,
           fields: ['id', 'displayName', 'location', 'formattedAddress'],
           locationBias: { lat: -8.8390, lng: 13.2345 },
           maxResultCount: 8,
@@ -424,25 +548,6 @@ export default function SearchSection({ onCompare, initialDestination = "" }: Se
 
   return (
     <div className="space-y-6" ref={searchRef}>
-      {hasMapsError && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3">
-          <span className="p-1 px-2 bg-amber-100 text-amber-700 rounded-lg shrink-0 mt-0.5 font-bold">⚠️</span>
-          <div className="text-left space-y-1">
-            <p className="text-amber-800 text-xs font-black tracking-tight leading-4">Limitador Google Maps (LegacyApiNotActivatedMapError)</p>
-            <p className="text-amber-600/90 text-[11px] font-semibold tracking-tight leading-relaxed">
-              O seu projeto Google Cloud não tem as APIs clássicas ativadas (apenas as novas). Para resolver:
-            </p>
-            <ol className="list-decimal list-inside text-[10px] text-amber-700/90 font-bold space-y-0.5 pl-1">
-              <li>Aceda à sua Consola Google Cloud.</li>
-              <li>Ative as seguintes APIs clássicas: <strong className="text-amber-900">Places API, Directions API, Distance Matrix API</strong> e <strong className="text-amber-900">Geocoding API</strong>.</li>
-              <li>Verifique as restrições da sua chave em "Credenciais".</li>
-            </ol>
-            <p className="text-[10px] text-amber-600 font-bold italic mt-1.5 bg-amber-100/40 p-1.5 rounded-lg border border-amber-200/50">
-              💡 Nota: Ativámos o assistente de rotas inteligentemente com o nosso modelo híbrido offline para que possa simular rotas e comparar preços agora mesmo!
-            </p>
-          </div>
-        </div>
-      )}
       <div className="relative space-y-4">
         {/* Origin Input */}
         <div className="relative group">
@@ -451,12 +556,26 @@ export default function SearchSection({ onCompare, initialDestination = "" }: Se
           </div>
           <input
             type="text"
-            className="input-field pl-14"
+            className="input-field pl-14 pr-12"
             placeholder="De onde você sai?"
             value={originText}
             onChange={(e) => handleTextChange(e.target.value, true)}
             onFocus={() => originText.length >= 3 && setShowOriginSuggestions(true)}
           />
+          
+          <button
+            type="button"
+            onClick={() => detectAndGeocode(true)}
+            disabled={isLocatingOrigin}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-primary transition-colors cursor-pointer z-10"
+            title="Usar localização atual"
+          >
+            {isLocatingOrigin ? (
+              <Loader2 size={16} className="animate-spin text-primary" />
+            ) : (
+              <Compass size={16} className="hover:scale-110 active:scale-95 transition-transform" />
+            )}
+          </button>
           
           <AnimatePresence>
             {showOriginSuggestions && (originSuggestions.length > 0 || isSearchingOrigin) && (
@@ -479,12 +598,26 @@ export default function SearchSection({ onCompare, initialDestination = "" }: Se
           </div>
           <input
             type="text"
-            className="input-field pl-14"
+            className="input-field pl-14 pr-12"
             placeholder="Para onde vamos?"
             value={destinationText}
             onChange={(e) => handleTextChange(e.target.value, false)}
             onFocus={() => destinationText.length >= 3 && setShowDestinationSuggestions(true)}
           />
+          
+          <button
+            type="button"
+            onClick={() => detectAndGeocode(false)}
+            disabled={isLocatingDest}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-primary transition-colors cursor-pointer z-10"
+            title="Usar localização atual"
+          >
+            {isLocatingDest ? (
+              <Loader2 size={16} className="animate-spin text-primary" />
+            ) : (
+              <Compass size={16} className="hover:scale-110 active:scale-95 transition-transform" />
+            )}
+          </button>
           
           <AnimatePresence>
             {showDestinationSuggestions && (destSuggestions.length > 0 || isSearchingDest) && (

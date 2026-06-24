@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Map, useMap, useMapsLibrary, Marker } from '@vis.gl/react-google-maps';
-import { Loader2, AlertTriangle, ShieldCheck, MapPin, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertTriangle, ShieldCheck, MapPin, CheckCircle2, Compass } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 const darkMapStyle = [
@@ -265,11 +265,17 @@ export default function MapComponent({ origin, destination, onRouteCalculated }:
       )}
 
       {/* Map visual rendering container */}
-      <div className="w-full h-[250px] rounded-[32px] overflow-hidden shadow-xl shadow-gray-200/50 border-4 border-white relative">
+      <div className="w-full h-[250px] rounded-[32px] overflow-hidden shadow-xl shadow-gray-200/50 border-4 border-white relative group/map">
         <Map
           defaultCenter={origin}
           defaultZoom={13}
-          disableDefaultUI={true}
+          disableDefaultUI={false}
+          zoomControl={true}
+          mapTypeControl={true}
+          scaleControl={true}
+          streetViewControl={true}
+          rotateControl={true}
+          fullscreenControl={true}
           className="w-full h-full"
           styles={theme === 'dark' ? darkMapStyle : []}
         >
@@ -283,6 +289,17 @@ export default function MapComponent({ origin, destination, onRouteCalculated }:
           <Marker position={origin} />
           <Marker position={destination} />
         </Map>
+
+        {/* Float Open Google Maps Shortcut */}
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute top-4 right-4 z-[99] flex items-center gap-1.5 px-3.5 py-2 bg-white/95 backdrop-blur-xs hover:bg-white text-gray-800 text-xs font-black rounded-2xl shadow-xl border border-gray-100 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer group"
+        >
+          <Compass size={14} className="text-primary group-hover:rotate-45 transition-transform duration-300" />
+          <span>Ver no Google Maps</span>
+        </a>
       </div>
     </div>
   );

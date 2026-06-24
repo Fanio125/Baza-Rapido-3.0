@@ -6,7 +6,7 @@ import type { SavedLocation, SavedLocationType } from '../types';
 import AddLocationModal from './AddLocationModal';
 
 interface SavedLocationsSectionProps {
-  onSelect: (address: string) => void;
+  onSelect: (item: SavedLocation) => void;
   user: any;
   onLoginRedirect: () => void;
 }
@@ -150,7 +150,7 @@ export default function SavedLocationsSection({ onSelect, user, onLoginRedirect 
             locations.map((item) => (
               <div 
                 key={item.id} 
-                onClick={() => onSelect(item.address)}
+                onClick={() => onSelect(item)}
                 className="flex items-center gap-4 p-4 premium-card border-none hover:bg-gray-50 text-left group transition-all duration-300 active:scale-[0.98] cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-xl group-hover:bg-white group-hover:rotate-6 transition-all duration-300">

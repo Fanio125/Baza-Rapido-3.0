@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, MapPin, Tag, Check, Loader2, Home, Briefcase, GraduationCap, Star, Search, User } from 'lucide-react';
+import { X, MapPin, Tag, Check, Loader2, Home, Briefcase, GraduationCap, Star, Search, User, Compass } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import type { SavedLocationType } from '../types';
-import { useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useMapsLibrary, Map, Marker } from '@vis.gl/react-google-maps';
 
 interface AddLocationModalProps {
   isOpen: boolean;
@@ -61,6 +61,7 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [hasMapsError, setHasMapsError] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     if (locationToEdit) {
@@ -75,6 +76,7 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
       setSelectedCoords(null);
     }
     setStatus(null);
+    setShowMap(false);
   }, [locationToEdit, isOpen]);
 
   const placesLib = useMapsLibrary('places');
@@ -159,8 +161,9 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
         // 1. Tenta usar o novo Places API (New) que funciona perfeitamente com a chave
         if (placesLib && placesLib.Place) {
           try {
+            const searchQuery = value.toLowerCase().includes('angola') ? value : `${value}, Luanda, Angola`;
             const response = await placesLib.Place.searchByText({
-              textQuery: value,
+              textQuery: searchQuery,
               fields: ['id', 'displayName', 'location', 'formattedAddress'],
               locationBias: { lat: -8.8390, lng: 13.2345 },
               maxResultCount: 8,
@@ -301,6 +304,44 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
 
     setIsSearching(false);
     setSelectedCoords(getFallbackCoordinates(suggestion.description));
+  };
+
+  const reverseGeocode = (lat: number, lng: number) => {
+    if ((window as any).google?.maps?.Geocoder) {
+      try {
+        const geocoder = new (window as any).google.maps.Geocoder();
+        geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
+          if (status === 'OK' && results && results[0]) {
+            setAddress(results[0].formatted_address);
+          } else {
+            setAddress(`Localização no Mapa (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
+          }
+        });
+      } catch (err) {
+        console.warn("Falha ao rodar reverse geocoding:", err);
+        setAddress(`Localização no Mapa (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
+      }
+    } else {
+      setAddress(`Localização no Mapa (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
+    }
+  };
+
+  const handleMapClick = (e: any) => {
+    let lat: number | undefined;
+    let lng: number | undefined;
+
+    if (e.detail?.latLng) {
+      lat = typeof e.detail.latLng.lat === 'function' ? e.detail.latLng.lat() : e.detail.latLng.lat;
+      lng = typeof e.detail.latLng.lng === 'function' ? e.detail.latLng.lng() : e.detail.latLng.lng;
+    } else if (e.latLng) {
+      lat = typeof e.latLng.lat === 'function' ? e.latLng.lat() : e.latLng.lat;
+      lng = typeof e.latLng.lng === 'function' ? e.latLng.lng() : e.latLng.lng;
+    }
+
+    if (lat && lng) {
+      setSelectedCoords({ lat, lng });
+      reverseGeocode(lat, lng);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -529,6 +570,34 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
                         </motion.div>
                       )}
                     </AnimatePresence>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowMap(!showMap)}
+                      className="mt-2.5 text-xs text-primary font-bold hover:underline flex items-center gap-1.5 self-start px-1"
+                    >
+                      <Compass size={13} className={cn("transition-transform", showMap && "rotate-45")} />
+                      {showMap ? 'Ocultar mapa' : 'Escolher localização no mapa'}
+                    </button>
+
+                    {showMap && (
+                      <div className="w-full h-[180px] rounded-2xl overflow-hidden border-2 border-gray-100 mt-2 relative shadow-inner">
+                        <Map
+                          defaultCenter={selectedCoords || { lat: -8.8390, lng: 13.2345 }}
+                          defaultZoom={13}
+                          center={selectedCoords || undefined}
+                          disableDefaultUI={false}
+                          zoomControl={true}
+                          className="w-full h-full"
+                          onClick={handleMapClick}
+                        >
+                          {selectedCoords && <Marker position={selectedCoords} />}
+                        </Map>
+                        <div className="absolute top-2 right-2 bg-gray-900/80 backdrop-blur-xs text-[9px] text-white px-2 py-1 rounded-lg font-bold pointer-events-none shadow-sm animate-pulse">
+                          Clique no mapa para marcar
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
