@@ -3,6 +3,8 @@
  * Cleans up the console in production to improve performance and security.
  */
 
+import { addAdminNotification } from './adminNotifications';
+
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -20,10 +22,17 @@ class Logger {
         break;
       case 'warn':
         console.warn(`${prefix} ${message}`, data || '');
+        // Also send warning logs to admin if they are relevant
+        if (message.includes('Acesso negado') || message.includes('unauthorized') || message.includes('não autorizado')) {
+          addAdminNotification('Segurança', 'Tentativa de acesso não autorizado', message);
+        } else {
+          addAdminNotification('Sistema', message, data ? JSON.stringify(data) : 'Aviso do sistema');
+        }
         break;
       case 'error':
         console.error(`${prefix} ${message}`, data || '');
-        // Here we could integrate with Sentry or similar
+        // Automatically send errors to admin notifications
+        addAdminNotification('Erros', message, data ? JSON.stringify(data) : 'Erro técnico do sistema');
         break;
       case 'debug':
         console.debug(`${prefix} ${message}`, data || '');
@@ -38,3 +47,4 @@ class Logger {
 }
 
 export const logger = new Logger();
+

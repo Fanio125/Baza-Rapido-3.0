@@ -1,5 +1,9 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import { initializeSupabaseLogger } from './utils/supabaseLogger';
+
+// Initialize the central Supabase & offline logger system
+initializeSupabaseLogger();
 
 // 1. Register global error and unhandled rejection event boundaries to prevent native/third-party exceptions from failing telemetry
 window.addEventListener('error', (event) => {
@@ -14,6 +18,13 @@ window.addEventListener('error', (event) => {
     combined.includes('network')
   ) {
     console.log('[Global Error Boundary Intercept] Mitigated benign exception gracefully:', event.message || event.error?.message);
+    window.dispatchEvent(new CustomEvent('baza-rapido-system-log', {
+      detail: {
+        category: 'Erros',
+        title: 'Exceção Global Mitigada',
+        description: event.message || event.error?.message || 'Erro de rede ou bloqueio de banco de dados'
+      }
+    }));
     event.preventDefault();
     event.stopPropagation();
   }
@@ -31,6 +42,13 @@ window.addEventListener('unhandledrejection', (event) => {
     combined.includes('network')
   ) {
     console.log('[Global Rejection Boundary Intercept] Mitigated benign unhandled rejection:', reasonMsg);
+    window.dispatchEvent(new CustomEvent('baza-rapido-system-log', {
+      detail: {
+        category: 'Erros',
+        title: 'Rejeição de Promessa Mitigada',
+        description: reasonMsg
+      }
+    }));
     event.preventDefault();
     event.stopPropagation();
   }
@@ -84,6 +102,13 @@ console.error = (...args: any[]) => {
 
   if (isBenignException(msg)) {
     console.log('[BazaRapido System Monitor Intercept] Benign error logged to standard console stream:', msg);
+    window.dispatchEvent(new CustomEvent('baza-rapido-system-log', {
+      detail: {
+        category: 'Erros',
+        title: 'Falha de Ligação / Rede',
+        description: msg
+      }
+    }));
     return;
   }
 
@@ -107,6 +132,13 @@ console.warn = (...args: any[]) => {
 
   if (isBenignException(msg)) {
     console.log('[BazaRapido System Monitor Intercept] Benign warning logged to standard console stream:', msg);
+    window.dispatchEvent(new CustomEvent('baza-rapido-system-log', {
+      detail: {
+        category: 'Sistema',
+        title: 'Aviso de Ligação / Cache',
+        description: msg
+      }
+    }));
     return;
   }
 

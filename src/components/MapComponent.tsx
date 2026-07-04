@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Map, useMap, useMapsLibrary, Marker } from '@vis.gl/react-google-maps';
 import { Loader2, AlertTriangle, ShieldCheck, MapPin, CheckCircle2, Compass } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const darkMapStyle = [
   { elementType: "geometry", stylers: [{ color: "#242424" }] },
@@ -74,6 +75,7 @@ interface RouteLayerProps {
 
 export default function MapComponent({ origin, destination, onRouteCalculated }: MapComponentProps) {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [hasAuthError, setHasAuthError] = useState(false);
   const [hasLegacyApiError, setHasLegacyApiError] = useState(false);
   const [hasBillingError, setHasBillingError] = useState(false);
@@ -190,7 +192,8 @@ export default function MapComponent({ origin, destination, onRouteCalculated }:
     };
   }, []);
 
-  const anyError = hasAuthError || hasLegacyApiError || hasBillingError || hasRequestDenied;
+  const isAdmin = user?.email === 'frankmanuel123.com@gmail.com';
+  const anyError = isAdmin && (hasAuthError || hasLegacyApiError || hasBillingError || hasRequestDenied);
 
   return (
     <div className="space-y-4">
