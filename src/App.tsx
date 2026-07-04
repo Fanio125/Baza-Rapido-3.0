@@ -22,6 +22,7 @@ const Cities = lazy(() => import('./pages/Cities'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Version = lazy(() => import('./pages/Version'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
 const GOOGLE_MAPS_API_KEY = 
   process.env.GOOGLE_MAPS_PLATFORM_KEY || 
@@ -94,6 +95,9 @@ const App: React.FC = () => {
                       <Route path="/privacy" element={<Privacy />} />
                       <Route path="/version" element={<Version />} />
                     </Route>
+                    
+                    {/* Admin Dashboard */}
+                    <Route path="/admin" element={<AdminDashboard />} />
                     
                     {/* Fallback */}
                     <Route path="*" element={<Navigate to="/" replace />} />

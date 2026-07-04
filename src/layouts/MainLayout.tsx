@@ -1,12 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Car } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import { ViewState } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const MainLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    if (user?.email === 'frankmanuel123.com@gmail.com') {
+      navigate('/admin');
+    }
+  }, [user, navigate]);
   
   // Map current path to ViewState for the Navbar
   const getCurrentView = (): ViewState => {

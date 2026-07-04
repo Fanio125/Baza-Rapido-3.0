@@ -48,12 +48,20 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
 
-  const menuItems: MenuItem[] = [
+  const baseMenuItems: MenuItem[] = [
     { icon: History, label: 'Histórico de Corridas', color: 'text-blue-500', bg: 'bg-blue-50', view: 'history' as ViewState },
     { icon: HelpCircle, label: 'Centro de Ajuda', color: 'text-purple-500', bg: 'bg-purple-50' },
     { icon: MessageCircle, label: 'Suporte via WhatsApp', color: 'text-emerald-500', bg: 'bg-emerald-50', url: 'https://wa.me/975151548' },
     { icon: Settings, label: 'Configurações', color: 'text-gray-500', bg: 'bg-gray-50', view: 'settings' as ViewState },
   ];
+
+  const isAdmin = user?.email === 'frankmanuel123.com@gmail.com';
+  const menuItems = isAdmin
+    ? [
+        { icon: ShieldCheck, label: 'Painel de Administração', color: 'text-amber-500', bg: 'bg-amber-50', view: 'admin' as any, badge: 'MÁSTER' },
+        ...baseMenuItems
+      ]
+    : baseMenuItems;
 
   const handleItemClick = (item: MenuItem) => {
     if (item.url) {
