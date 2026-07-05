@@ -253,8 +253,6 @@ export default function AdminDashboard() {
       } else if (user.email !== 'frankmanuel123.com@gmail.com') {
         console.warn("Acesso negado: Utilizador comum tentou aceder ao painel de administração.");
         navigate('/');
-      } else {
-        localStorage.removeItem('admin_as_user');
       }
     }
   }, [user, loading, navigate]);
@@ -997,11 +995,15 @@ export default function AdminDashboard() {
           {/* Sidebar Footer */}
           <div className="p-4 border-t border-inherit">
             <button
-              onClick={() => {
-                localStorage.setItem('admin_as_user', 'true');
+              onClick={async () => {
+                try {
+                  await signOut();
+                } catch (err) {
+                  console.error('Erro ao sair:', err);
+                }
                 navigate('/', { replace: true });
               }}
-              className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-gray-500 hover:text-amber-500 dark:text-gray-400 dark:hover:text-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 rounded-2xl transition-all cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-2xl transition-all cursor-pointer"
             >
               <ArrowLeft size={18} />
               {sidebarOpen && <span>Voltar ao App</span>}
