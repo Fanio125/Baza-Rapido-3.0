@@ -11,7 +11,7 @@ const MainLayout: React.FC = () => {
   const { user } = useAuth();
   
   useEffect(() => {
-    if (user?.email === 'frankmanuel123.com@gmail.com') {
+    if (user?.email === 'frankmanuel123.com@gmail.com' && localStorage.getItem('admin_as_user') !== 'true') {
       navigate('/admin');
     }
   }, [user, navigate]);
