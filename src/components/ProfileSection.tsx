@@ -64,6 +64,9 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
     : baseMenuItems;
 
   const handleItemClick = (item: MenuItem) => {
+    if (item.view === 'admin' as any) {
+      sessionStorage.removeItem('bypass_admin_redirect');
+    }
     if (item.url) {
       window.open(item.url, '_blank');
     } else if (item.view) {

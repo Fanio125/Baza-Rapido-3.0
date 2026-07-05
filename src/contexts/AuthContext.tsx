@@ -26,6 +26,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
 
+  const clearInvalidSupabaseSession = () => {
+    try {
+      console.warn("Clearing invalid Supabase session from storage...");
+      localStorage.removeItem('sb-pbcoftqdqyitgzwyadjc-auth-token');
+      localStorage.removeItem('supabase.auth.token');
+      
+      // Loop through all localStorage items to find any key related to supabase or auth-token
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('auth-token') || key.includes('supabase.auth') || key.startsWith('sb-'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+      
+      // Clear cookies starting with sb- or containing auth-token
+      document.cookie.split(";").forEach((c) => {
+        const trimmed = c.trim();
+        if (trimmed.startsWith("sb-") || trimmed.includes("auth-token") || trimmed.includes("supabase")) {
+          document.cookie = trimmed.replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/");
+        }
+      });
+    } catch (e) {
+      console.error("Error clearing supabase storage:", e);
+    }
+  };
+
   useEffect(() => {
     // Check if there is a demo session in localStorage first
     const savedDemo = localStorage.getItem('demo_user');
@@ -42,6 +70,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    // Set up global error and unhandled promise rejection listeners to catch invalid refresh token errors
+    const handleGlobalError = (event: PromiseRejectionEvent | ErrorEvent) => {
+      let errorMsg = '';
+      if ('reason' in event) {
+        errorMsg = String(event.reason?.message || event.reason || '');
+      } else if ('message' in event) {
+        errorMsg = String(event.message || '');
+      }
+
+      const lowerMsg = errorMsg.toLowerCase();
+      if (
+        lowerMsg.includes('refresh token') || 
+        lowerMsg.includes('token not found') ||
+        lowerMsg.includes('invalid_grant') ||
+        lowerMsg.includes('invalid refresh token')
+      ) {
+        console.warn("Caught invalid refresh token error globally. Cleaning up...", errorMsg);
+        clearInvalidSupabaseSession();
+        setUser(null);
+        setSession(null);
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleGlobalError);
+    window.addEventListener('error', handleGlobalError);
+
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!localStorage.getItem('demo_user')) {
@@ -51,6 +108,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }).catch(err => {
       console.warn("Supabase initial session fetch failed (offline or blocked):", err);
+      const errMsg = String(err?.message || err || '').toLowerCase();
+      if (
+        errMsg.includes('refresh token') || 
+        errMsg.includes('token not found') || 
+        errMsg.includes('invalid_grant') ||
+        errMsg.includes('invalid refresh token')
+      ) {
+        clearInvalidSupabaseSession();
+        setUser(null);
+        setSession(null);
+      }
       if (!localStorage.getItem('demo_user')) {
         setLoading(false);
       }
@@ -66,6 +134,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
+      window.removeEventListener('unhandledrejection', handleGlobalError);
+      window.removeEventListener('error', handleGlobalError);
       subscription.unsubscribe();
     };
   }, []);

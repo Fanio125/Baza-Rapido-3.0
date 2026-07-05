@@ -995,12 +995,8 @@ export default function AdminDashboard() {
           {/* Sidebar Footer */}
           <div className="p-4 border-t border-inherit">
             <button
-              onClick={async () => {
-                try {
-                  await signOut();
-                } catch (err) {
-                  console.error('Erro ao sair:', err);
-                }
+              onClick={() => {
+                sessionStorage.setItem('bypass_admin_redirect', 'true');
                 navigate('/', { replace: true });
               }}
               className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-2xl transition-all cursor-pointer"
@@ -1588,6 +1584,16 @@ export default function AdminDashboard() {
             {activeTab === 'ads' && (
               <div className="space-y-6">
                 
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-black font-display tracking-tight">Gestão de Anúncios</h2>
+                  <button
+                    onClick={() => navigate('/create-ad')}
+                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-2xl flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                  >
+                    <Plus size={14} /> Novo Anúncio
+                  </button>
+                </div>
+
                 {/* Search, Filter, Stats Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                   <div className="relative lg:col-span-2">
@@ -1698,7 +1704,7 @@ export default function AdminDashboard() {
                                   <Eye size={13} />
                                 </button>
                                 <button 
-                                  onClick={() => handleEditAd(a)}
+                                  onClick={() => navigate(`/edit-ad/${a.id}`)}
                                   className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
                                   title="Editar Anúncio"
                                 >

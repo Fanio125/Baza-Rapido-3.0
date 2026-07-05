@@ -11,7 +11,7 @@ const MainLayout: React.FC = () => {
   const { user } = useAuth();
   
   useEffect(() => {
-    if (user?.email === 'frankmanuel123.com@gmail.com') {
+    if (user?.email === 'frankmanuel123.com@gmail.com' && sessionStorage.getItem('bypass_admin_redirect') !== 'true') {
       navigate('/admin');
     }
   }, [user, navigate]);

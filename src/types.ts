@@ -37,7 +37,7 @@ export interface SavedLocation {
   created_at: string;
 }
 
-export type ViewState = 'home' | 'comparing' | 'results' | 'profile' | 'history' | 'settings' | 'languages' | 'cities' | 'terms' | 'privacy' | 'version' | 'edit-profile';
+export type ViewState = 'home' | 'comparing' | 'results' | 'profile' | 'history' | 'settings' | 'languages' | 'cities' | 'terms' | 'privacy' | 'version' | 'edit-profile' | 'ads';
 
 export interface UserProfile {
   id: string;
