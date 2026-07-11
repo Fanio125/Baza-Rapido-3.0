@@ -142,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     localStorage.removeItem('demo_user');
+    sessionStorage.removeItem('bypass_admin_redirect');
     setIsDemo(false);
     setUser(null);
     setSession(null);

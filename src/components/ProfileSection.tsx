@@ -39,7 +39,7 @@ interface MenuItem {
 }
 
 export default function ProfileSection({ user, onNavigate }: ProfileSectionProps) {
-  const { signOut } = useAuth();
+  const { signOut, signInAsDemo } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -116,7 +116,11 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
         }
         
         console.log("Login realizado com sucesso! User ID:", data.user?.id);
-        // Não é necessário processar mais nada aqui, o App.tsx via onAuthStateChange vai detetar a mudança
+        
+        // Se o utilizador logado for o administrador, garantir que ele entra primeiro na conta/profile
+        if (cleanEmail === 'frankmanuel123.com@gmail.com') {
+          sessionStorage.setItem('bypass_admin_redirect', 'true');
+        }
       } else {
         const { data, error } = await supabase.auth.signUp({ 
           email: cleanEmail, 
@@ -171,35 +175,6 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
         msg = err;
       }
 
-      // Map technical errors to user-friendly Portuguese messages
-      const lowerMsg = msg.toLowerCase();
-      let isTranslated = false;
-
-      if (lowerMsg.includes('invalid login credentials') || lowerMsg.includes('invalid_credentials') || lowerMsg.includes('invalid credentials')) {
-        msg = 'Senha incorreta.';
-        isTranslated = true;
-      } else if (lowerMsg.includes('rate limit')) {
-        msg = 'Demasiadas tentativas num curto período de tempo. Por favor, aguarda uns minutos.';
-        isTranslated = true;
-      } else if (lowerMsg.includes('email not confirmed')) {
-        msg = 'O teu email ainda não foi confirmado. Por favor, verifica a tua caixa de entrada para ativar a conta.';
-        isTranslated = true;
-      } else if (lowerMsg.includes('error sending confirmation email')) {
-        // NOTA: Este erro geralmente significa que o SMTP não está configurado no painel do Supabase.
-        msg = 'Não foi possível enviar o email de confirmação. O serviço pode estar temporariamente indisponível ou o limite diário foi atingido.';
-        isTranslated = true;
-      } else if (lowerMsg.includes('user already registered') || lowerMsg.includes('user already exists')) {
-        msg = 'Este endereço de email já está associado a uma conta. Tenta entrar ou recuperar a palavra-passe.';
-        isTranslated = true;
-      } else if (msg === '{}' || (err && typeof err === 'object' && Object.keys(err).length === 0 && msg === 'Ocorreu um erro inesperado.')) {
-        msg = 'Erro de ligação ao servidor. Por favor, verifica a tua internet e tenta novamente.';
-        isTranslated = true;
-      }
-
-      // Only show technical codes if we haven't translated to a friendly message
-      const status = (!isTranslated && (err as any)?.status) || (err as any)?.code || '';
-      if (status && !isTranslated) details = ` [${status}]`;
-
       setError(`${msg}${details}`);
     } finally {
       setIsLoading(false);
@@ -207,6 +182,7 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
   };
 
   const handleLogout = async () => {
+    sessionStorage.removeItem('bypass_admin_redirect');
     await signOut();
   };
 
@@ -291,7 +267,7 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
           {error && (
             <div className={cn(
               "p-4 rounded-2xl text-[10px] font-bold text-center",
-              error.includes('Verifica') ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+              (error.includes('Verifica') || error.includes('Conta criada')) ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
             )}>
               {error}
             </div>
@@ -311,6 +287,24 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
             className="w-full text-center text-xs font-bold text-gray-400 hover:text-primary transition-colors py-1"
           >
             {mode === 'login' ? 'Não tens conta? Cria uma aqui' : 'Já tens conta? Entra aqui'}
+          </button>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-gray-100"></div>
+            <span className="flex-shrink mx-4 text-gray-400 text-[10px] font-black uppercase tracking-widest">ou</span>
+            <div className="flex-grow border-t border-gray-100"></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => signInAsDemo(
+              fullName.trim() || 'Utilizador Demo', 
+              phone.trim() || '923456789', 
+              email.trim() || 'demo@bazarapido.com'
+            )}
+            className="w-full h-14 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all border border-orange-100"
+          >
+            Entrar com Conta de Demonstração
           </button>
         </form>
       </div>

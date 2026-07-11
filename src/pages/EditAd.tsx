@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { adService, Ad } from '../services/adService';
+import { isAdminAuthenticated, getAdminAuthStatus } from '../utils/authHelper';
 
 const LUANDA_MUNICIPALITIES = [
   'Belas', 'Cacuaco', 'Cazenga', 'Icolo e Bengo', 
@@ -25,7 +26,10 @@ export default function EditAd() {
   // Security Gate
   useEffect(() => {
     if (!loading) {
-      if (!user || user.email !== 'frankmanuel123.com@gmail.com') {
+      const status = getAdminAuthStatus(user);
+      if (status.needsRedirectToProfile) {
+        navigate('/profile', { replace: true });
+      } else if (!status.isAdmin) {
         navigate('/', { replace: true });
       }
     }
@@ -137,7 +141,7 @@ export default function EditAd() {
     navigate('/admin');
   };
 
-  if (loading || !user || user.email !== 'frankmanuel123.com@gmail.com' || !ad) {
+  if (loading || !isAdminAuthenticated(user) || !ad) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-pulse flex flex-col items-center gap-3">

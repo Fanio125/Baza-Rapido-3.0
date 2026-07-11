@@ -46,6 +46,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { isAdminAuthenticated, getAdminAuthStatus } from '../utils/authHelper';
 import { 
   AdminNotification,
   getAdminNotifications,
@@ -248,9 +249,11 @@ export default function AdminDashboard() {
   // --- Security Check ---
   useEffect(() => {
     if (!loading) {
-      if (!user) {
-        navigate('/');
-      } else if (user.email !== 'frankmanuel123.com@gmail.com') {
+      const status = getAdminAuthStatus(user);
+      if (status.needsRedirectToProfile) {
+        console.warn("Redirecionando admin: sessão expirada ou dados incompletos.");
+        navigate('/profile');
+      } else if (!status.isAdmin && user) {
         console.warn("Acesso negado: Utilizador comum tentou aceder ao painel de administração.");
         navigate('/');
       }

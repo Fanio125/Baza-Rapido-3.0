@@ -1,7 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://pbcoftqdqyitgzwyadjc.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_H83QVpeK3IBPo10M00QKiQ_Un9XT64L';
+
+if (supabaseUrl) {
+  if (supabaseUrl.endsWith('/rest/v1/')) {
+    supabaseUrl = supabaseUrl.slice(0, -9);
+  } else if (supabaseUrl.endsWith('/rest/v1')) {
+    supabaseUrl = supabaseUrl.slice(0, -8);
+  }
+}
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(

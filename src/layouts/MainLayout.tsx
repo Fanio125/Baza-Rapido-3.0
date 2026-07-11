@@ -4,6 +4,7 @@ import { Car } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import { ViewState } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminAuthenticated } from '../utils/authHelper';
 
 const MainLayout: React.FC = () => {
   const location = useLocation();
@@ -11,10 +12,20 @@ const MainLayout: React.FC = () => {
   const { user } = useAuth();
   
   useEffect(() => {
-    if (user?.email === 'frankmanuel123.com@gmail.com' && sessionStorage.getItem('bypass_admin_redirect') !== 'true') {
-      navigate('/admin');
+    if (user?.email === 'frankmanuel123.com@gmail.com') {
+      if (isAdminAuthenticated(user)) {
+        if (sessionStorage.getItem('bypass_admin_redirect') !== 'true') {
+          navigate('/admin');
+        }
+      } else {
+        // Force redirect to profile because data is incomplete
+        if (location.pathname !== '/profile') {
+          console.warn("Utilizador admin detetado com dados incompletos. Redirecionando para /profile.");
+          navigate('/profile');
+        }
+      }
     }
-  }, [user, navigate]);
+  }, [user, navigate, location.pathname]);
   
   // Map current path to ViewState for the Navbar
   const getCurrentView = (): ViewState => {
