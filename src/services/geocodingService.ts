@@ -11,7 +11,11 @@ export interface GeocodingResult {
   };
 }
 
-const POSITIONSTACK_KEY = import.meta.env.VITE_POSITIONSTACK_KEY || '6a05ef900a680c730c1ec1dab6d0200d';
+const POSITIONSTACK_KEY = import.meta.env.VITE_POSITIONSTACK_KEY || '';
+
+if (!POSITIONSTACK_KEY) {
+  console.warn("PositionStack API Key is missing! Please define VITE_POSITIONSTACK_KEY in your .env file.");
+}
 
 export const geocodingService = {
   async search(query: string): Promise<GeocodingResult[]> {

@@ -28,8 +28,13 @@ const CreateAd = lazy(() => import('./pages/CreateAd'));
 const EditAd = lazy(() => import('./pages/EditAd'));
 
 const GOOGLE_MAPS_API_KEY = 
+  import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || 
   process.env.GOOGLE_MAPS_PLATFORM_KEY || 
-  'AIzaSyCT4_-3Hr6FRrKWKSw2DO_dsss0-a_fswQ';
+  '';
+
+if (!GOOGLE_MAPS_API_KEY) {
+  console.warn("Google Maps Platform API key is missing! Please define VITE_GOOGLE_MAPS_PLATFORM_KEY or GOOGLE_MAPS_PLATFORM_KEY in your env configuration.");
+}
 
 const hasValidKey = Boolean(GOOGLE_MAPS_API_KEY) && GOOGLE_MAPS_API_KEY.startsWith('AIza');
 
