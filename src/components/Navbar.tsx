@@ -13,7 +13,6 @@ export default function Navbar({ currentView, onNavigate }: NavbarProps) {
     { id: 'home', icon: Home, label: 'Início' },
     { id: 'history', icon: Map, label: 'Viagens' },
     { id: 'comparing', icon: Search, label: 'Baza' },
-    { id: 'ads', icon: Megaphone, label: 'Anúncios' },
     { id: 'statistics', icon: BarChart2, label: 'Preços' },
     { id: 'profile', icon: User, label: 'Perfil' },
   ];

@@ -9,6 +9,18 @@
   --color-primary-dark: #cc5600;
   --color-dark: #111111;
   
+  --color-orange-50: #fff5eb;
+  --color-orange-100: #ffe6cc;
+  --color-orange-200: #ffc999;
+  --color-orange-300: #ffa366;
+  --color-orange-400: #ff8533;
+  --color-orange-500: #FF6B00;
+  --color-orange-600: #e66000;
+  --color-orange-700: #cc5600;
+  --color-orange-800: #994000;
+  --color-orange-900: #662b00;
+  --color-orange-950: #331500;
+  
   --radius-xl: 16px;
   --radius-2xl: 24px;
 }

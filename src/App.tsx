@@ -23,9 +23,6 @@ const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Version = lazy(() => import('./pages/Version'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const Ads = lazy(() => import('./pages/Ads'));
-const CreateAd = lazy(() => import('./pages/CreateAd'));
-const EditAd = lazy(() => import('./pages/EditAd'));
 
 const GOOGLE_MAPS_API_KEY = 
   import.meta.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || 
@@ -102,13 +99,10 @@ const App: React.FC = () => {
                       <Route path="/terms" element={<Terms />} />
                       <Route path="/privacy" element={<Privacy />} />
                       <Route path="/version" element={<Version />} />
-                      <Route path="/ads" element={<Ads />} />
                     </Route>
                     
                     {/* Admin Dashboard */}
                     <Route path="/admin" element={<AdminDashboard />} />
-                    <Route path="/create-ad" element={<CreateAd />} />
-                    <Route path="/edit-ad/:id" element={<EditAd />} />
                     
                     {/* Fallback */}
                     <Route path="*" element={<Navigate to="/" replace />} />

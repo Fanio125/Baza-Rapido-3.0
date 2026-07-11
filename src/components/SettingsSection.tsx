@@ -54,7 +54,19 @@ export default function SettingsSection({ onNavigate }: SettingsSectionProps) {
           console.log('Todas as localizações do utilizador do banco de dados foram apagadas.');
         }
 
-        // 2. Apagar o perfil do utilizador da tabela profiles
+        // 2. Apagar todo o histórico de viagens em ride_history
+        const { error: rideHistoryError } = await supabase
+          .from('ride_history')
+          .delete()
+          .eq('user_id', user.id);
+
+        if (rideHistoryError) {
+          console.error('Erro ao eliminar histórico de viagens do utilizador:', rideHistoryError);
+        } else {
+          console.log('Todo o histórico de viagens do utilizador do banco de dados foi apagado.');
+        }
+
+        // 3. Apagar o perfil do utilizador da tabela profiles
         const { error: profileError } = await supabase
           .from('profiles')
           .delete()

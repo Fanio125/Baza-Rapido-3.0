@@ -173,7 +173,7 @@ export default function AdminDashboard() {
   });
 
   // --- Active Tab ---
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'ads' | 'complaints' | 'messages' | 'categories' | 'stats' | 'config' | 'notifications'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'complaints' | 'messages' | 'categories' | 'stats' | 'config' | 'notifications'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // --- Admin Entities States ---
@@ -312,7 +312,6 @@ export default function AdminDashboard() {
     };
   }, [activeTab]);
 
-
   const loadAndSyncUsers = async () => {
     try {
       const { data: dbProfiles, error } = await supabase
@@ -326,42 +325,15 @@ export default function AdminDashboard() {
         try { localUsers = JSON.parse(savedUsersStr); } catch (_) {}
       }
 
-      // Base mock users with detailed properties
-      const defaultMockUsers: AdminUser[] = [
-        { id: 'usr-1', name: 'Frank Manuel', email: 'frankmanuel123.com@gmail.com', phone: '923000123', status: 'Ativo', registered_at: '2026-05-10', last_access: 'Hoje, 10:24', ads_count: 5, avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150', city: 'Luanda', role: 'Administrador' },
-        { id: 'usr-2', name: 'Sebastião Antunes', email: 'sebastiao.ant@gmail.com', phone: '931224455', status: 'Ativo', registered_at: '2026-06-12', last_access: 'Ontem, 18:45', ads_count: 12, avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150', city: 'Talatona', role: 'Utilizador' },
-        { id: 'usr-3', name: 'Zandrina Mendes', email: 'zandrina.m@outlook.com', phone: '942881122', status: 'Ativo', registered_at: '2026-06-20', last_access: '28 de Junho, 12:10', ads_count: 0, avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150', city: 'Cazenga', role: 'Utilizador' },
-        { id: 'usr-4', name: 'Mateus Catraio', email: 'mateus.cat@gmail.com', phone: '912550099', status: 'Bloqueado', registered_at: '2026-06-01', last_access: '05 de Junho, 09:30', ads_count: 2, avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150', city: 'Viana', role: 'Utilizador' },
-        { id: 'usr-5', name: 'Isabel de Carvalho', email: 'isabel.carv@hotmail.com', phone: '925334400', status: 'Suspenso', registered_at: '2026-06-25', last_access: 'Hoje, 08:15', ads_count: 8, avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150', city: 'Belas', role: 'Utilizador' },
-        { id: 'usr-6', name: 'Manuel Ventura', email: 'manuel.ventura@gmail.com', phone: '924112233', status: 'Ativo', registered_at: '2026-07-02', last_access: 'Hoje, 11:02', ads_count: 1, avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150', city: 'Cacuaco', role: 'Utilizador' },
-        { id: 'usr-7', name: 'Domingos Neto', email: 'domingos.neto@hotmail.com', phone: '933556677', status: 'Ativo', registered_at: '2026-06-30', last_access: '02 de Julho, 14:20', ads_count: 4, avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150', city: 'Kilamba Kiaxi', role: 'Utilizador' }
-      ];
+      // No mock users are allowed anymore, only real database users or local persist of real users
+      const defaultMockUsers: AdminUser[] = [];
 
       if (error) {
         console.warn('Could not load profiles from Supabase. Using local storage.', error.message);
-        mergedUsers = localUsers.length > 0 ? localUsers : defaultMockUsers;
+        mergedUsers = localUsers.length > 0 ? localUsers : [];
       } else if (!dbProfiles || dbProfiles.length === 0) {
-        console.log('Supabase profiles table is empty. Seeding with mock users...');
-        mergedUsers = defaultMockUsers;
-        
-        // Seed database
-        for (const u of defaultMockUsers) {
-          try {
-            await supabase.from('profiles').insert({
-              id: u.id,
-              name: u.name,
-              email: u.email,
-              phone: u.phone,
-              city: u.city,
-              photo_url: u.avatar_url,
-              status: u.status,
-              role: u.role,
-              last_access: u.last_access
-            });
-          } catch (insertErr) {
-            console.warn('Failed to seed user:', u.name, insertErr);
-          }
-        }
+        console.log('Supabase profiles table is empty.');
+        mergedUsers = [];
       } else {
         mergedUsers = dbProfiles.map((p: any) => {
           const matchLocal = localUsers.find(lu => lu.id === p.id || lu.email === p.email);
@@ -370,22 +342,15 @@ export default function AdminDashboard() {
             name: p.name || 'Utilizador Sem Nome',
             email: p.email || 'sem@email.com',
             phone: p.phone || '900000000',
-            status: p.status || matchLocal?.status || 'Ativo',
+            status: p.status || p.status_user || matchLocal?.status || 'Ativo',
             registered_at: p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : (matchLocal?.registered_at || '2026-06-01'),
-            last_access: p.last_access || matchLocal?.last_access || 'Hoje, ' + new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }),
-            ads_count: p.ads_count !== undefined ? p.ads_count : (matchLocal?.ads_count !== undefined ? matchLocal.ads_count : Math.floor(Math.random() * 6)),
+            last_access: p.last_access || matchLocal?.last_access || 'Hoje',
+            ads_count: p.ads_count !== undefined ? p.ads_count : (matchLocal?.ads_count !== undefined ? matchLocal.ads_count : 0),
             avatar_url: p.photo_url || p.avatar_url || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150`,
             city: p.city || matchLocal?.city || 'Luanda',
             role: p.role || matchLocal?.role || (p.email === 'frankmanuel123.com@gmail.com' ? 'Administrador' : 'Utilizador')
           };
         });
-
-        // Add any missing default mocks
-        for (const mu of defaultMockUsers) {
-          if (!mergedUsers.some(mu2 => mu2.email === mu.email)) {
-            mergedUsers.push(mu);
-          }
-        }
       }
 
       setUsers(mergedUsers);
@@ -418,57 +383,57 @@ export default function AdminDashboard() {
       try { setCategories(JSON.parse(savedCats)); } catch (_) {}
     } else {
       const mockCats: AdminCategory[] = [
-        { id: 'cat-1', name: 'Económico', icon: 'Car', ads_count: 24 },
-        { id: 'cat-2', name: 'Conforto', icon: 'ShoppingBag', ads_count: 18 },
-        { id: 'cat-3', name: 'Executivo', icon: 'Briefcase', ads_count: 9 },
-        { id: 'cat-4', name: 'Moto-táxi', icon: 'Compass', ads_count: 42 },
-        { id: 'cat-5', name: 'Carrinha/Entregas', icon: 'Home', ads_count: 15 }
+        { id: 'cat-1', name: 'Económico', icon: 'Car', ads_count: 0 },
+        { id: 'cat-2', name: 'Conforto', icon: 'ShoppingBag', ads_count: 0 },
+        { id: 'cat-3', name: 'Executivo', icon: 'Briefcase', ads_count: 0 },
+        { id: 'cat-4', name: 'Moto-táxi', icon: 'Compass', ads_count: 0 },
+        { id: 'cat-5', name: 'Carrinha/Entregas', icon: 'Home', ads_count: 0 }
       ];
       setCategories(mockCats);
       localStorage.setItem('br_admin_categories', JSON.stringify(mockCats));
     }
 
-    // 4. Ads
+    // 4. Ads - No fake ads
     const savedAds = localStorage.getItem('br_admin_ads');
+    let activeAds: AdminAd[] = [];
     if (savedAds) {
-      try { setAds(JSON.parse(savedAds)); } catch (_) {}
-    } else {
-      const mockAds: AdminAd[] = [
-        { id: 'ad-1', title: 'Corrida Diária Kilamba - Talatona (Partilhado)', category: 'Conforto', city: 'Talatona', price: 1500, status: 'Aprovado', advertiser: 'Sebastião Antunes', advertiser_email: 'sebastiao.ant@gmail.com', date: '2026-06-28', description: 'Procuro 2 passageiros para dividir despesas de combustível de Segunda a Sexta, saída às 07:00.', phone: '931224455' },
-        { id: 'ad-2', title: 'Fretes e Entregas Rápidas Viana', category: 'Carrinha/Entregas', city: 'Viana', price: 8000, status: 'Pendente', advertiser: 'Mateus Catraio', advertiser_email: 'mateus.cat@gmail.com', date: '2026-07-01', description: 'Serviço de fretes com carrinha fechada. Preço negociável consoante a distância e volume.', phone: '912550099' },
-        { id: 'ad-3', title: 'Moto-táxi Rápido Cacuaco/Talatona', category: 'Moto-táxi', city: 'Cacuaco', price: 800, status: 'Aprovado', advertiser: 'Isabel de Carvalho', advertiser_email: 'isabel.carv@hotmail.com', date: '2026-06-30', description: 'Serviço profissional de moto-táxi rápido e seguro. Capacete higienizado disponível.', phone: '925334400' },
-        { id: 'ad-4', title: 'Aluguer de Carro com Motorista - Executivo', category: 'Executivo', city: 'Luanda', price: 35000, status: 'Aprovado', advertiser: 'Frank Manuel', advertiser_email: 'frankmanuel123.com@gmail.com', date: '2026-06-29', description: 'Viatura luxuosa com motorista profissional para eventos corporativos, casamentos ou turismo.', phone: '923000123' },
-        { id: 'ad-5', title: 'Táxi Particular Aeroporto - Central Luanda', category: 'Económico', city: 'Belas', price: 5000, status: 'Rejeitado', advertiser: 'Mateus Catraio', advertiser_email: 'mateus.cat@gmail.com', date: '2026-06-24', description: 'Preço fixo sem taxas ocultas. Água e ar condicionado incluídos.', phone: '912550099' }
-      ];
-      setAds(mockAds);
-      localStorage.setItem('br_admin_ads', JSON.stringify(mockAds));
+      try {
+        const parsed = JSON.parse(savedAds);
+        if (Array.isArray(parsed)) {
+          activeAds = parsed.filter((ad: any) => ad && ad.id && !ad.id.startsWith('ad-'));
+        }
+      } catch (_) {}
     }
+    setAds(activeAds);
+    localStorage.setItem('br_admin_ads', JSON.stringify(activeAds));
 
-    // 5. Complaints
+    // 5. Complaints - No fake complaints
     const savedComplaints = localStorage.getItem('br_admin_complaints');
+    let activeComplaints: Complaint[] = [];
     if (savedComplaints) {
-      try { setComplaints(JSON.parse(savedComplaints)); } catch (_) {}
-    } else {
-      const mockComplaints: Complaint[] = [
-        { id: 'comp-1', target_id: 'ad-5', target_name: 'Táxi Particular Aeroporto - Central Luanda', target_type: 'Anúncio', reason: 'Preço excessivo e abuso nas tarifas declaradas.', reporter: 'Zandrina Mendes', date: '2026-06-27', status: 'Pendente' },
-        { id: 'comp-2', target_id: 'usr-4', target_name: 'Mateus Catraio', target_type: 'Utilizador', reason: 'Contacto telefónico falso e comportamento suspeito.', reporter: 'Sebastião Antunes', date: '2026-06-26', status: 'Pendente' }
-      ];
-      setComplaints(mockComplaints);
-      localStorage.setItem('br_admin_complaints', JSON.stringify(mockComplaints));
+      try {
+        const parsed = JSON.parse(savedComplaints);
+        if (Array.isArray(parsed)) {
+          activeComplaints = parsed.filter((c: any) => c && c.id && !c.id.startsWith('comp-') && !c.target_id.startsWith('usr-') && !c.target_id.startsWith('ad-'));
+        }
+      } catch (_) {}
     }
+    setComplaints(activeComplaints);
+    localStorage.setItem('br_admin_complaints', JSON.stringify(activeComplaints));
 
-    // 6. Support Messages
+    // 6. Support Messages - No fake support messages
     const savedMessages = localStorage.getItem('br_admin_messages');
+    let activeMessages: SupportMessage[] = [];
     if (savedMessages) {
-      try { setMessages(JSON.parse(savedMessages)); } catch (_) {}
-    } else {
-      const mockMessages: SupportMessage[] = [
-        { id: 'msg-1', sender_name: 'Zandrina Mendes', sender_email: 'zandrina.m@outlook.com', subject: 'Problema no Geocoding', content: 'Ao pesquisar a minha localização atual no Morro Bento, o aplicativo indicou um endereço levemente desviado por 50 metros. Podem verificar a precisão do Google Maps?', date: '2026-07-02', replied: false, reply_content: null },
-        { id: 'msg-2', sender_name: 'Sebastião Antunes', sender_email: 'sebastiao.ant@gmail.com', subject: 'Agradecimento Equipa', content: 'Excelente aplicação de comparação de preços! Poupo imenso dinheiro diariamente entre o Yango e o Heetch. Parabéns à equipa de desenvolvimento de Luanda.', date: '2026-06-28', replied: true, reply_content: 'Olá Sebastião! Agradecemos imenso o feedback positivo. Continuamos focados em trazer as melhores estimativas de preço de Luanda!' }
-      ];
-      setMessages(mockMessages);
-      localStorage.setItem('br_admin_messages', JSON.stringify(mockMessages));
+      try {
+        const parsed = JSON.parse(savedMessages);
+        if (Array.isArray(parsed)) {
+          activeMessages = parsed.filter((m: any) => m && m.id && !m.id.startsWith('msg-'));
+        }
+      } catch (_) {}
     }
+    setMessages(activeMessages);
+    localStorage.setItem('br_admin_messages', JSON.stringify(activeMessages));
   }, []);
 
   // --- Save states helper ---
@@ -589,6 +554,19 @@ export default function AdminDashboard() {
 
       // Sync delete to Supabase
       try {
+        // Delete dependent data first to ensure clean delete and prevent foreign key errors
+        const { error: locError } = await supabase
+          .from('saved_locations')
+          .delete()
+          .eq('user_id', userId);
+        if (locError) console.warn('Supabase saved_locations delete failed:', locError.message);
+
+        const { error: rideError } = await supabase
+          .from('ride_history')
+          .delete()
+          .eq('user_id', userId);
+        if (rideError) console.warn('Supabase ride_history delete failed:', rideError.message);
+
         const { error } = await supabase
           .from('profiles')
           .delete()
@@ -655,7 +633,7 @@ export default function AdminDashboard() {
   };
 
   // Complaint Actions
-  const handleResolveComplaint = (compId: string, action: 'keep' | 'delete') => {
+  const handleResolveComplaint = async (compId: string, action: 'keep' | 'delete') => {
     const comp = complaints.find(c => c.id === compId);
     if (!comp) return;
 
@@ -664,12 +642,10 @@ export default function AdminDashboard() {
         const updatedAds = ads.filter(a => a.id !== comp.target_id);
         setAds(updatedAds);
         saveStateToLocalStorage('br_admin_ads', updatedAds);
+        showAlert('success', `Anúncio associado foi eliminado.`);
       } else {
-        const updatedUsers = users.filter(u => u.id !== comp.target_id);
-        setUsers(updatedUsers);
-        saveStateToLocalStorage('br_admin_users', updatedUsers);
+        await handleDeleteUser(comp.target_id);
       }
-      showAlert('success', `${comp.target_type} associado foi eliminado.`);
     } else {
       showAlert('info', `Denúncia mantida e arquivada.`);
     }
@@ -958,7 +934,6 @@ export default function AdminDashboard() {
             {[
               { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
               { id: 'users', label: 'Utilizadores', icon: Users, badge: users.length },
-              { id: 'ads', label: 'Anúncios/Viagens', icon: ShoppingBag, badge: ads.length },
               { id: 'notifications', label: 'Notificações', icon: Bell, badge: notifications.filter(n => !n.read).length || undefined },
               { id: 'complaints', label: 'Denúncias', icon: ShieldAlert, badge: complaints.filter(c => c.status === 'Pendente').length || undefined },
               { id: 'messages', label: 'Mensagens Apoio', icon: MessageSquare, badge: messages.filter(m => !m.replied).length || undefined },
@@ -1271,6 +1246,22 @@ export default function AdminDashboard() {
 
               return (
                 <div className="space-y-6">
+                  {/* Header with Title and Supabase link */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-lg font-black font-display tracking-tight">Gestão de Utilizadores</h2>
+                      <p className="text-xs text-gray-400 font-bold mt-0.5">Consulte e controle os dados locais ou aceda ao painel oficial do Supabase.</p>
+                    </div>
+                    <a
+                      href="https://supabase.com/dashboard/project/pbcoftqdqyitgzwyadjc/auth/users"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#3ecf8e] hover:bg-[#3ecf8e]/95 text-white font-black text-xs rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shadow-sm self-start sm:self-auto"
+                    >
+                      <Database size={14} /> Ver Utilizadores Reais (Supabase)
+                    </a>
+                  </div>
+
                   {/* Top Stats Cards */}
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div className={`p-4.5 rounded-2xl border shadow-xs ${isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'}`}>
@@ -1584,7 +1575,7 @@ export default function AdminDashboard() {
             })()}
 
             {/* ==================== TAB: GESTÃO DE ANÚNCIOS ==================== */}
-            {activeTab === 'ads' && (
+            {false && (
               <div className="space-y-6">
                 
                 <div className="flex items-center justify-between">

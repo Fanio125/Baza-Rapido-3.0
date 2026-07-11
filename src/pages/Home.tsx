@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Bell, Zap, TrendingUp, ArrowRight, MapPin, Sparkles, History, Building2, Megaphone } from 'lucide-react';
+import { Bell, Zap, TrendingUp, ArrowRight, MapPin, Sparkles, History, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import SearchSection from '../components/SearchSection';
 import SavedLocationsSection from '../components/SavedLocationsSection';
 import { useNavigate } from 'react-router-dom';
 import { Location, SavedLocation } from '../types';
 import { rideHistoryService } from '../services/rideHistoryService';
-import { adService, Ad } from '../services/adService';
 
 interface SearchRoute {
   origem: string;
@@ -37,17 +36,6 @@ const Home: React.FC = () => {
   const [selectedOriginAddr, setSelectedOriginAddr] = useState("");
   const [frequentRoutes, setFrequentRoutes] = useState<GroupedRoute[]>([]);
   const [routesLoading, setRoutesLoading] = useState(true);
-  const [featuredAds, setFeaturedAds] = useState<Ad[]>([]);
-
-  useEffect(() => {
-    setFeaturedAds(adService.getActiveApprovedAds().slice(0, 3));
-    
-    const handleUpdate = () => {
-      setFeaturedAds(adService.getActiveApprovedAds().slice(0, 3));
-    };
-    window.addEventListener('ads-updated', handleUpdate);
-    return () => window.removeEventListener('ads-updated', handleUpdate);
-  }, []);
 
   const loadFrequentRoutes = async () => {
     setRoutesLoading(true);
@@ -393,68 +381,7 @@ const Home: React.FC = () => {
         )}
       </div>
 
-      {/* Premium & Sponsored Ads Section */}
-      {featuredAds.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Megaphone size={18} className="text-primary" />
-              <h3 className="font-bold font-display text-gray-900 tracking-tight">Destaques e Serviços</h3>
-            </div>
-            <button 
-              onClick={() => navigate('/ads')}
-              className="text-xs font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
-            >
-              Ver todos <ArrowRight size={12} />
-            </button>
-          </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-none">
-            {featuredAds.map((ad) => (
-              <div
-                key={ad.id}
-                onClick={() => navigate('/ads')}
-                className={`flex-none w-72 p-4 rounded-3xl border bg-white cursor-pointer hover:border-primary/20 transition-all shadow-xs relative overflow-hidden space-y-3 ${
-                  ad.type === 'Premium' ? 'ring-1 ring-amber-400/20 border-amber-200' : 'border-gray-100'
-                }`}
-              >
-                {/* Image */}
-                <div className="w-full h-32 rounded-2xl overflow-hidden bg-gray-50 relative">
-                  <img 
-                    src={ad.images?.[0] || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80'} 
-                    alt={ad.title} 
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
-                    ad.type === 'Premium' ? 'bg-amber-500 text-white' : 'bg-primary text-white'
-                  }`}>
-                    {ad.type}
-                  </span>
-                </div>
-
-                {/* Info */}
-                <div className="space-y-1 text-left">
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                    <span className="truncate">{ad.category}</span>
-                    <span>•</span>
-                    <span className="truncate">{ad.city}</span>
-                  </div>
-                  <h4 className="font-extrabold text-sm text-gray-900 line-clamp-1">{ad.title}</h4>
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs text-gray-500 font-bold truncate max-w-[150px]">{ad.company_name || ad.advertiser}</span>
-                    {ad.price && ad.price > 0 ? (
-                      <span className="text-xs font-black text-primary">{ad.price.toLocaleString('pt-AO')} Kz</span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-gray-400">Consultar</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <SavedLocationsSection 
         user={user} 
