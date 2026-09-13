@@ -36,10 +36,10 @@ const UserHistory: React.FC = () => {
     }
     setError(null);
 
-    const userId = user?.id || 'demo-user-id';
+    const userId = user?.id || '';
 
     try {
-      const data = await rideHistoryService.getHistory(userId, isDemo);
+      const data = await rideHistoryService.getHistory(userId);
       setHistory(data);
     } catch (err: any) {
       console.error('Erro ao buscar histórico:', err);
@@ -291,6 +291,17 @@ const UserHistory: React.FC = () => {
                           <span className="font-black text-gray-500">{ride.payment_method}</span>
                         </div>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigate('/', { state: { destination: ride.destino, origin: ride.origem } });
+                        }}
+                        className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 active:scale-95 text-primary rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all"
+                      >
+                        <span>Comparar</span>
+                        <ArrowRight size={12} />
+                      </button>
                     </div>
                   </motion.div>
                 ))}

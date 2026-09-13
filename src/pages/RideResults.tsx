@@ -51,23 +51,20 @@ const RideResults: React.FC = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
-    >
-      <div className="flex items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
         <button 
           onClick={() => navigate('/')}
-          className="p-2 bg-gray-50 rounded-xl"
+          className="p-2.5 bg-gray-50 hover:bg-gray-100 active:scale-95 transition-all rounded-2xl shrink-0"
+          title="Voltar"
         >
-          <ChevronLeft />
+          <ChevronLeft size={20} className="text-gray-700" />
         </button>
-        <div>
-          <h2 className="text-xl font-bold font-display">Sua melhor opção</h2>
-          <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">
-            <MapPin size={10} className="text-primary" />
-            <span className="truncate max-w-[200px]">{destination?.address}</span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-black font-display text-gray-900 leading-tight">Melhores opções</h2>
+          <div className="flex items-center gap-1 text-[11px] text-gray-500 font-semibold truncate mt-0.5">
+            <MapPin size={11} className="text-primary shrink-0" />
+            <span className="truncate">{destination?.address}</span>
           </div>
         </div>
       </div>
@@ -79,21 +76,23 @@ const RideResults: React.FC = () => {
       />
 
       {isComparing ? (
-        <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4 text-center p-6 bg-gray-50/50 rounded-[32px] border-2 border-dashed border-gray-100">
+        <div className="flex flex-col items-center justify-center min-h-[30vh] space-y-4 text-center p-6 bg-gray-50/70 rounded-3xl border border-gray-100">
           <div className="relative">
             <motion.div
               animate={{ rotate: 360 }}
-              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-              className="w-16 h-16 border-4 border-gray-100 border-t-primary rounded-full"
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="w-14 h-14 border-3 border-gray-100 border-t-primary rounded-full"
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Zap size={20} className="text-primary fill-primary animate-pulse" />
+              <Zap size={18} className="text-primary fill-primary animate-pulse" />
             </div>
           </div>
           <div className="space-y-1">
-            <h3 className="text-lg font-black font-display tracking-tight">Comparando preços...</h3>
-            <p className="text-xs text-gray-500 max-w-[200px] mx-auto font-medium">
-              Analisando Bolt, Yango, Uber e outros em <span className="text-gray-900 font-bold tracking-tight">TEMPO REAL</span>.
+            <h3 className="text-base font-extrabold font-display tracking-tight text-gray-900">
+              Estamos a comparar os melhores preços em Luanda...
+            </h3>
+            <p className="text-xs text-gray-400 max-w-[240px] mx-auto font-medium">
+              Consultando Yango, Bolt, Heetch, inDrive, Uber, Anda e outros serviços em tempo real.
             </p>
           </div>
         </div>
@@ -118,7 +117,7 @@ const RideResults: React.FC = () => {
           <ComparisonList results={results} origin={origin} destination={destination} distance={routeInfo?.distance} />
         </>
       )}
-    </motion.div>
+    </div>
   );
 };
 

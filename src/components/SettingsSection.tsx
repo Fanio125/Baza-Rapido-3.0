@@ -12,7 +12,8 @@ import {
   Shield,
   Tag,
   ChevronRight,
-  Moon
+  Moon,
+  HelpCircle
 } from 'lucide-react';
 import type { ViewState } from '../types';
 import DeleteAccountModal from './DeleteAccountModal';
@@ -101,7 +102,23 @@ export default function SettingsSection({ onNavigate }: SettingsSectionProps) {
     }
   };
 
-  const sections = [
+  interface SettingItem {
+    icon: any;
+    label: string;
+    description?: string;
+    color: string;
+    bg: string;
+    view?: ViewState;
+    isThemeToggle?: boolean;
+    isDestructive?: boolean;
+  }
+
+  interface SettingSection {
+    title?: string;
+    items: SettingItem[];
+  }
+
+  const sections: SettingSection[] = [
     {
       items: [
         { icon: User, label: 'Editar perfil', description: 'Nome, foto, número de telefone', color: 'text-blue-500', bg: 'bg-blue-50', view: 'edit-profile' as ViewState },
@@ -109,6 +126,12 @@ export default function SettingsSection({ onNavigate }: SettingsSectionProps) {
         { icon: Bell, label: 'Notificações', description: 'Ativar ou desativar alertas', color: 'text-amber-500', bg: 'bg-amber-50' },
         { icon: Globe, label: 'Idioma', description: 'Português (AO)', color: 'text-emerald-500', bg: 'bg-emerald-50', view: 'languages' as ViewState },
         { icon: MapPin, label: 'Cidade', description: 'Luanda, Angola', color: 'text-purple-500', bg: 'bg-purple-50', view: 'cities' as ViewState },
+      ]
+    },
+    {
+      title: 'Apoio e Suporte',
+      items: [
+        { icon: HelpCircle, label: 'Centro de Ajuda', description: 'Enviar mensagem ao suporte', color: 'text-purple-500', bg: 'bg-purple-50', view: 'help' as ViewState },
       ]
     },
     {
@@ -201,7 +224,7 @@ export default function SettingsSection({ onNavigate }: SettingsSectionProps) {
       </div>
 
       <div className="text-center pt-8">
-         <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">Feito com ❤️ em Luanda</p>
+         <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">Feito por Angolanos</p>
       </div>
 
       <DeleteAccountModal 

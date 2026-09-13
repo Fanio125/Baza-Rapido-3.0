@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Bell, Zap, TrendingUp, ArrowRight, MapPin, Sparkles, History, Building2 } from 'lucide-react';
+import { Bell, Zap, TrendingUp, ArrowRight, MapPin, History, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import SearchSection from '../components/SearchSection';
 import SavedLocationsSection from '../components/SavedLocationsSection';
@@ -40,11 +40,11 @@ const Home: React.FC = () => {
   const loadFrequentRoutes = async () => {
     setRoutesLoading(true);
     try {
-      const userId = user?.id || 'demo-user-id';
+      const userId = user?.id || '';
       // 1. Get ride history
       let rides: any[] = [];
       try {
-        rides = await rideHistoryService.getHistory(userId, isDemo);
+        rides = await rideHistoryService.getHistory(userId);
       } catch (err) {
         console.warn('Não foi possível carregar os dados de viagens:', err);
       }
@@ -283,31 +283,24 @@ const Home: React.FC = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="space-y-8"
-    >
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-black font-display tracking-tight text-gray-900">
-            Olá, <span className="text-primary underline decoration-primary/20">
-              {user ? (user.user_metadata?.full_name || user.email?.split('@')[0]) : 'Viajante'}
-            </span>! 👋
-          </h1>
-          <p className="text-gray-500 font-medium">Para onde vamos hoje?</p>
-        </div>
-        <button 
-          onClick={() => navigate('/rides')}
-          className="relative p-2 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-        >
-          <Bell size={24} className="text-gray-700" />
-          <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-primary border-2 border-white rounded-full" />
-        </button>
+    <div className="space-y-6 pb-6">
+      {/* Greeting & Slogan */}
+      <div className="space-y-1">
+        <h1 className="text-2xl font-black font-display tracking-tight text-gray-900">
+          Olá, <span className="text-primary">
+            {user 
+              ? ((user.user_metadata?.full_name?.trim().split(/\s+/)[0]) || user.email?.split('@')[0]) 
+              : 'Viajante'}
+          </span> 👋
+        </h1>
+        <p className="text-lg font-bold text-gray-800 font-display">Para onde vamos?</p>
+        <p className="text-xs text-gray-400 font-medium">
+          "Não escolha só o mais barato. Escolha o melhor."
+        </p>
       </div>
 
-      <div className="premium-card p-6 border-none shadow-xl shadow-gray-200/50 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-gray-50 overflow-hidden relative">
+      {/* Main Search Card */}
+      <div className="premium-card p-5 border border-gray-100 shadow-xl shadow-gray-200/40 bg-white overflow-hidden relative rounded-3xl">
         <div className="relative z-10">
           <SearchSection 
             onCompare={handleCompare} 
@@ -318,62 +311,52 @@ const Home: React.FC = () => {
       </div>
 
       {/* Recommended/Frequent Routes Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <TrendingUp size={18} className="text-primary" />
-            <h3 className="font-bold font-display text-gray-900 tracking-tight">Rotas Frequentes</h3>
+            <TrendingUp size={16} className="text-primary" />
+            <h3 className="font-bold font-display text-gray-900 text-sm tracking-tight">Rotas Frequentes</h3>
           </div>
-          <span className="text-[10px] font-black text-gray-400 bg-gray-50 uppercase tracking-widest px-2.5 py-1 rounded-lg border border-gray-100/50">
-            Sugeridas para si
+          <span className="text-[10px] font-bold text-gray-400 bg-gray-50 uppercase tracking-widest px-2 py-0.5 rounded-lg border border-gray-100">
+            Sugeridas
           </span>
         </div>
 
         {routesLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-2.5">
             {[1, 2].map((n) => (
-              <div key={n} className="p-4 bg-gray-50/50 rounded-2xl animate-pulse space-y-2 border border-gray-100">
+              <div key={n} className="p-3.5 bg-gray-50/50 rounded-2xl animate-pulse space-y-2 border border-gray-100">
                 <div className="h-3 w-1/3 bg-gray-200 rounded" />
                 <div className="h-4 w-2/3 bg-gray-200 rounded" />
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-2.5">
             {frequentRoutes.map((route, idx) => (
               <motion.div
                 key={idx}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
                 onClick={() => handleSelectFrequentRoute(route)}
-                className="group p-4 bg-white hover:bg-orange-50/10 border border-gray-100/80 hover:border-primary/20 rounded-3xl transition-all cursor-pointer flex items-center justify-between gap-3 shadow-xs hover:shadow-md hover:shadow-primary/5 relative overflow-hidden"
+                className="group p-3.5 bg-white hover:bg-orange-50/20 border border-gray-100 hover:border-primary/25 rounded-2xl transition-all cursor-pointer flex items-center justify-between gap-3 shadow-xs relative overflow-hidden"
               >
-                {/* Visual connector line in backgrounds */}
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary/30 to-primary/5 group-hover:from-primary/70 transition-all" />
-
-                <div className="flex-1 min-w-0 pl-1">
-                  <div className="flex items-center gap-1.5 text-gray-500 text-[11px] font-medium leading-none mb-1 text-left">
-                    <History size={11} className="text-gray-400" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1 text-gray-400 text-[10px] font-medium leading-none mb-1 truncate">
+                    <History size={10} className="shrink-0" />
                     <span className="truncate">De: {route.origem === 'Minha localização atual' ? 'Localização Atual' : route.origem}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-left">
-                    <MapPin size={12} className="text-primary fill-primary/10 shrink-0" />
-                    <span className="font-extrabold font-display text-gray-900 text-sm truncate">{route.destino}</span>
+                  <div className="flex items-center gap-1.5">
+                    <MapPin size={13} className="text-primary shrink-0" />
+                    <span className="font-bold font-display text-gray-900 text-sm truncate">{route.destino}</span>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end shrink-0 gap-1">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-lg text-[9px] font-bold text-gray-500 uppercase tracking-tight group-hover:bg-primary/5 group-hover:border-primary/10 transition-colors">
-                    {route.isPreset ? (
-                      <>
-                        <Sparkles size={8} className="text-primary fill-primary/10" />
-                        Popular
-                      </>
-                    ) : (
-                      `${route.count}× busca`
-                    )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="px-2 py-0.5 bg-gray-50 group-hover:bg-primary/10 rounded-lg text-[10px] font-bold text-gray-500 group-hover:text-primary transition-colors">
+                    Repetir
                   </span>
-                  <ArrowRight size={14} className="text-gray-300 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                  <ArrowRight size={14} className="text-gray-300 group-hover:text-primary transition-all" />
                 </div>
               </motion.div>
             ))}
@@ -381,14 +364,12 @@ const Home: React.FC = () => {
         )}
       </div>
 
-
-
       <SavedLocationsSection 
         user={user} 
         onSelect={handleSelectSavedLocation} 
         onLoginRedirect={() => navigate('/profile')}
       />
-    </motion.div>
+    </div>
   );
 };
 

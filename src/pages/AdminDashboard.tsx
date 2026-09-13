@@ -41,12 +41,26 @@ import {
   AlertCircle,
   ShieldCheck,
   Terminal,
-  RefreshCw
+  RefreshCw,
+  HelpCircle,
+  Clock,
+  Activity,
+  Globe,
+  TrendingUp,
+  Smartphone,
+  Monitor,
+  Tablet,
+  Zap,
+  Lock,
+  Layers
 } from 'lucide-react';
+import { helpCenterService, HelpMessage } from '../services/helpCenterService';
+import { analyticsService, AnalyticsSummary, OnlineUserPresence } from '../services/analyticsService';
+import { formatPhoneInput, validateAngolaPhone } from '../utils/phoneValidation';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { isAdminAuthenticated, getAdminAuthStatus } from '../utils/authHelper';
+import { isAdminAuthenticated, getAdminAuthStatus, isUserAdmin } from '../utils/authHelper';
 import { 
   AdminNotification,
   getAdminNotifications,
@@ -183,6 +197,8 @@ export default function AdminDashboard() {
   const [ads, setAds] = useState<AdminAd[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [helpMessages, setHelpMessages] = useState<HelpMessage[]>([]);
+  const [selectedHelpMessage, setSelectedHelpMessage] = useState<HelpMessage | null>(null);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [config, setConfig] = useState<AppConfig>({
     appName: 'Baza Rápido',
@@ -236,6 +252,43 @@ export default function AdminDashboard() {
   const [selectedLogsTab, setSelectedLogsTab] = useState<'local' | 'supabase'>('local');
   const [expandedLogId, setExpandedLogId] = useState<string | number | null>(null);
   const [logSearchQuery, setLogSearchQuery] = useState('');
+
+  // --- Real-Time Analytics State ---
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsSummary | null>(null);
+  const [analyticsRange, setAnalyticsRange] = useState<'today' | '7days' | '30days' | 'all'>('7days');
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+  const [showRlsModal, setShowRlsModal] = useState(false);
+
+  const loadAnalytics = async () => {
+    setIsAnalyticsLoading(true);
+    const summary = await analyticsService.getAnalyticsSummary(analyticsRange);
+    setAnalyticsData(summary);
+    setIsAnalyticsLoading(false);
+  };
+
+  useEffect(() => {
+    loadAnalytics();
+
+    const unsubscribePresence = analyticsService.subscribeToPresence((onlineCount, list) => {
+      setAnalyticsData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          onlineUsersCount: onlineCount,
+          onlineUsersList: list
+        };
+      });
+    });
+
+    const unsubscribeAccesses = analyticsService.subscribeToAccesses(() => {
+      loadAnalytics();
+    });
+
+    return () => {
+      unsubscribePresence();
+      unsubscribeAccesses();
+    };
+  }, [analyticsRange]);
 
 
   // --- Toast/Status Alert State ---
@@ -348,7 +401,9 @@ export default function AdminDashboard() {
             ads_count: p.ads_count !== undefined ? p.ads_count : (matchLocal?.ads_count !== undefined ? matchLocal.ads_count : 0),
             avatar_url: p.photo_url || p.avatar_url || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150`,
             city: p.city || matchLocal?.city || 'Luanda',
-            role: p.role || matchLocal?.role || (p.email === 'frankmanuel123.com@gmail.com' ? 'Administrador' : 'Utilizador')
+            role: isUserAdmin(p) 
+              ? 'Administrador' 
+              : (p.role === 'Administrador' ? 'Utilizador' : (p.role || matchLocal?.role || 'Utilizador'))
           };
         });
       }
@@ -421,19 +476,22 @@ export default function AdminDashboard() {
     setComplaints(activeComplaints);
     localStorage.setItem('br_admin_complaints', JSON.stringify(activeComplaints));
 
-    // 6. Support Messages - No fake support messages
-    const savedMessages = localStorage.getItem('br_admin_messages');
-    let activeMessages: SupportMessage[] = [];
-    if (savedMessages) {
-      try {
-        const parsed = JSON.parse(savedMessages);
-        if (Array.isArray(parsed)) {
-          activeMessages = parsed.filter((m: any) => m && m.id && !m.id.startsWith('msg-'));
-        }
-      } catch (_) {}
-    }
-    setMessages(activeMessages);
-    localStorage.setItem('br_admin_messages', JSON.stringify(activeMessages));
+    // 6. Support Messages / Help Center
+    const loadHelpCenterMessages = async () => {
+      const list = await helpCenterService.getAllMessagesForAdmin();
+      setHelpMessages(list);
+    };
+
+    loadHelpCenterMessages();
+
+    const handleMessagesUpdate = () => {
+      helpCenterService.getAllMessagesForAdmin().then(setHelpMessages);
+    };
+
+    window.addEventListener('br_help_messages_updated', handleMessagesUpdate);
+    return () => {
+      window.removeEventListener('br_help_messages_updated', handleMessagesUpdate);
+    };
   }, []);
 
   // --- Save states helper ---
@@ -457,6 +515,13 @@ export default function AdminDashboard() {
 
   const handleSaveUser = async () => {
     if (!editingUser) return;
+    if (editingUser.phone) {
+      const phoneError = validateAngolaPhone(editingUser.phone);
+      if (phoneError) {
+        showAlert('error', phoneError);
+        return;
+      }
+    }
     const updated = users.map(user => user.id === editingUser.id ? editingUser : user);
     setUsers(updated);
     saveStateToLocalStorage('br_admin_users', updated);
@@ -796,25 +861,23 @@ export default function AdminDashboard() {
     return matchQuery && matchCat && matchCity && matchStatus;
   });
 
-  // --- Mock Statistical Charts Data ---
-  const statsDailyGrowth = [
-    { name: '01/07', users: 2, ads: 3 },
-    { name: '02/07', users: 5, ads: 4 },
-    { name: '03/07', users: 8, ads: 7 },
-    { name: '04/07', users: 12, ads: 11 },
-    { name: '05/07', users: 15, ads: 13 },
-    { name: '06/07', users: 19, ads: 16 },
-    { name: '07/07', users: 24, ads: 20 },
-  ];
+  // --- Real Statistical Charts Data ---
+  const statsDailyGrowth = (analyticsData?.growthData || []).map(g => ({
+    name: g.date,
+    users: g.novosUtilizadores,
+    ads: g.acessos
+  }));
 
-  const cityAdsData = [
-    { name: 'Luanda', value: 45 },
-    { name: 'Talatona', value: 30 },
-    { name: 'Viana', value: 25 },
-    { name: 'Belas', value: 15 },
-    { name: 'Cazenga', value: 12 },
-    { name: 'Cacuaco', value: 8 }
-  ];
+  const cityAdsMap: Record<string, number> = {};
+  ads.forEach(ad => {
+    if (ad.city) {
+      cityAdsMap[ad.city] = (cityAdsMap[ad.city] || 0) + 1;
+    }
+  });
+  const cityAdsData = Object.keys(cityAdsMap).map(city => ({
+    name: city,
+    value: cityAdsMap[city]
+  }));
 
   const COLORS = ['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899', '#6B7280'];
 
@@ -881,7 +944,13 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className={`min-h-screen font-sans transition-colors duration-200 ${isAdminDarkMode ? 'bg-[#0f172a] text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`min-h-screen font-sans transition-colors duration-200 ${isAdminDarkMode ? 'bg-[#0f172a] text-gray-100' : 'bg-gray-50 text-gray-800'}`}
+    >
       
       {/* Alert Banner / Toast notification */}
       <AnimatePresence>
@@ -936,9 +1005,9 @@ export default function AdminDashboard() {
               { id: 'users', label: 'Utilizadores', icon: Users, badge: users.length },
               { id: 'notifications', label: 'Notificações', icon: Bell, badge: notifications.filter(n => !n.read).length || undefined },
               { id: 'complaints', label: 'Denúncias', icon: ShieldAlert, badge: complaints.filter(c => c.status === 'Pendente').length || undefined },
-              { id: 'messages', label: 'Mensagens Apoio', icon: MessageSquare, badge: messages.filter(m => !m.replied).length || undefined },
+              { id: 'messages', label: 'Centro de Ajuda', icon: HelpCircle, badge: helpMessages.filter(m => m.status === 'Pendente').length || undefined },
               { id: 'categories', label: 'Categorias', icon: Grid },
-              { id: 'stats', label: 'Estatísticas', icon: BarChart3 },
+              { id: 'stats', label: 'Analytics Realtime', icon: Activity },
               { id: 'config', label: 'Configurações', icon: Settings2 },
             ].map((item) => {
 
@@ -1534,7 +1603,7 @@ export default function AdminDashboard() {
                           {paginatedUsers.length === 0 && (
                             <tr>
                               <td colSpan={8} className="text-center py-10 text-gray-400 text-xs font-black">
-                                Nenhum utilizador encontrado com os filtros selecionados.
+                                {users.length === 0 ? 'Não existem utilizadores ainda.' : 'Nenhum utilizador encontrado com os filtros selecionados.'}
                               </td>
                             </tr>
                           )}
@@ -1733,6 +1802,14 @@ export default function AdminDashboard() {
                             </td>
                           </tr>
                         ))}
+
+                        {filteredAds.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="text-center py-10 text-gray-400 text-xs font-black">
+                              {ads.length === 0 ? 'Não existem anúncios publicados.' : 'Nenhum anúncio encontrado com os filtros selecionados.'}
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1848,110 +1925,90 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ==================== TAB: MENSAGENS APOIO ==================== */}
+            {/* ==================== TAB: CENTRO DE AJUDA ==================== */}
             {activeTab === 'messages' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Messages list */}
-                  <div className={`lg:col-span-2 p-6 rounded-3xl border shadow-sm space-y-4 ${
-                    isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
-                  }`}>
-                    <h3 className="text-base font-black tracking-tight font-display mb-2">Mensagens de Suporte Recebidas</h3>
-                    <div className="space-y-3.5">
-                      {messages.map((msg) => (
-                        <div 
-                          key={msg.id}
-                          className={`p-5 rounded-2xl border flex flex-col justify-between ${
-                            isAdminDarkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-gray-50 border-gray-100'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className={`text-[9px] px-2.5 py-0.5 rounded-full font-black ${
-                                msg.replied ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-500' : 'bg-amber-100 dark:bg-amber-950/40 text-amber-500'
-                              }`}>
-                                {msg.replied ? 'Respondido' : 'Pendente'}
-                              </span>
-                              <h4 className="text-sm font-black tracking-tight mt-2">{msg.subject}</h4>
-                              <p className="text-[11px] text-gray-400 font-bold mt-0.5">Por: {msg.sender_name} ({msg.sender_email}) • {msg.date}</p>
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-300 mt-3 italic bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-100 dark:border-slate-700">
-                            "{msg.content}"
-                          </p>
-                          {msg.replied && msg.reply_content && (
-                            <div className="mt-3 pl-3.5 border-l-2 border-amber-500">
-                              <p className="text-[10px] font-black text-amber-500 uppercase tracking-wide">Resposta Enviada:</p>
-                              <p className="text-xs text-gray-400 italic mt-0.5">"{msg.reply_content}"</p>
-                            </div>
-                          )}
-                          {!msg.replied && (
-                            <button 
-                              onClick={() => setReplyingMessage(msg)}
-                              className="mt-4 self-end flex items-center gap-1 px-4 py-2 bg-amber-500 text-white font-black text-xs rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-                            >
-                              <MessageSquare size={13} /> Responder Utilizador
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-bold font-display tracking-tight">Centro de Ajuda</h3>
+                    <p className="text-xs text-gray-400 font-medium">Todas as mensagens e dúvidas enviadas pelos utilizadores do Baza Rápido</p>
                   </div>
-
-                  {/* Simulator Reply Box */}
-                  <div className="lg:col-span-1">
-                    <AnimatePresence mode="wait">
-                      {replyingMessage ? (
-                        <motion.div 
-                          key="reply-active"
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          className={`p-6 rounded-3xl border shadow-sm space-y-4 ${
-                            isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
-                          }`}
-                        >
-                          <h3 className="text-sm font-black tracking-tight uppercase text-amber-500">Responder Ticket</h3>
-                          <p className="text-xs font-bold text-gray-400">A responder a {replyingMessage.sender_name}</p>
-                          
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-400">Texto de Resposta</label>
-                            <textarea
-                              rows={5}
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              placeholder="Escreva a resposta que o utilizador irá receber no e-mail..."
-                              className={`w-full p-3.5 rounded-2xl border text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 ${
-                                isAdminDarkMode ? 'bg-[#0f172a] border-slate-700 text-white' : 'bg-gray-50 border-gray-100 text-gray-800'
-                              }`}
-                            />
-                          </div>
-
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={handleSendReply}
-                              className="flex-1 px-4 py-2.5 bg-amber-500 text-white font-black text-xs rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-                            >
-                              Enviar Email
-                            </button>
-                            <button 
-                              onClick={() => setReplyingMessage(null)}
-                              className="px-4 py-2.5 bg-gray-100 dark:bg-slate-800 text-gray-400 font-bold text-xs rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        </motion.div>
-                      ) : (
-                        <div className={`p-6 rounded-3xl border shadow-sm text-center py-12 text-gray-400 text-xs font-bold ${
-                          isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
-                        }`}>
-                          Selecione uma mensagem pendente para enviar uma resposta instantânea.
-                        </div>
-                      )}
-                    </AnimatePresence>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
+                      Total: {helpMessages.length}
+                    </span>
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                      Pendentes: {helpMessages.filter(m => m.status === 'Pendente').length}
+                    </span>
                   </div>
                 </div>
+
+                {helpMessages.length === 0 ? (
+                  <div className={`p-12 rounded-3xl border text-center space-y-3 ${
+                    isAdminDarkMode ? 'bg-[#1e293b] border-slate-800 text-slate-400' : 'bg-white border-gray-100 text-gray-400'
+                  }`}>
+                    <HelpCircle size={36} className="mx-auto text-purple-400 opacity-60" />
+                    <p className="text-sm font-bold">Nenhuma mensagem recebida até ao momento.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {helpMessages.map((msg) => (
+                      <div 
+                        key={msg.id}
+                        onClick={() => setSelectedHelpMessage(msg)}
+                        className={`p-5 rounded-2xl border transition-all cursor-pointer hover:border-purple-300 dark:hover:border-purple-600 flex flex-col justify-between space-y-3 ${
+                          isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1">{msg.assunto}</h4>
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                              {msg.user_name} ({msg.user_email})
+                            </p>
+                          </div>
+                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-black shrink-0 ${
+                            msg.status === 'Lida' 
+                              ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300' 
+                              : 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300'
+                          }`}>
+                            {msg.status}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 bg-gray-50 dark:bg-slate-800/60 p-3 rounded-xl italic">
+                          "{msg.mensagem}"
+                        </p>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                            <Clock size={12} />
+                            {new Date(msg.created_at).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+
+                          <div className="flex items-center gap-2">
+                            {msg.status === 'Pendente' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  helpCenterService.markAsRead(msg.id).then(() => {
+                                    helpCenterService.getAllMessagesForAdmin().then(setHelpMessages);
+                                  });
+                                }}
+                                className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[10px] rounded-lg transition-all"
+                              >
+                                Marcar Lida
+                              </button>
+                            )}
+                            <button className="px-3 py-1 bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 font-bold text-[10px] rounded-lg">
+                              Ler Completa
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2075,60 +2132,451 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ==================== TAB: ESTATÍSTICAS ==================== */}
+            {/* ==================== TAB: ANALYTICS EM TEMPO REAL ==================== */}
             {activeTab === 'stats' && (
               <div className="space-y-6">
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Category usage stats */}
-                  <div className={`p-6 rounded-3xl border shadow-sm ${
+                {/* Header Control Panel */}
+                <div className={`p-6 rounded-3xl border flex flex-col md:flex-row md:items-center justify-between gap-6 ${
+                  isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                }`}>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-xl font-black tracking-tight font-display flex items-center gap-2">
+                        <Activity size={24} className="text-amber-500" /> Analytics em Tempo Real
+                      </h2>
+                      <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-xs font-black">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        Supabase Realtime Activo
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 font-bold">
+                      Telemetria ao vivo de utilizadores online, acessos temporais, dispositivos e crescimento com preservação de privacidade.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Range Selector */}
+                    <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-2xl border border-gray-200/50 dark:border-slate-700/50">
+                      {[
+                        { id: 'today', label: 'Hoje' },
+                        { id: '7days', label: '7 Dias' },
+                        { id: '30days', label: '30 Dias' },
+                        { id: 'all', label: 'Tudo' }
+                      ].map(r => (
+                        <button
+                          key={r.id}
+                          onClick={() => setAnalyticsRange(r.id as any)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                            analyticsRange === r.id
+                              ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                              : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                          }`}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={loadAnalytics}
+                      disabled={isAnalyticsLoading}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-md shadow-amber-500/10"
+                    >
+                      <RefreshCw size={14} className={isAnalyticsLoading ? 'animate-spin' : ''} /> Atualizar
+                    </button>
+
+                    <button
+                      onClick={() => setShowRlsModal(!showRlsModal)}
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 text-xs font-black rounded-2xl transition-all flex items-center gap-2 cursor-pointer border border-gray-200/60 dark:border-slate-700"
+                    >
+                      <Lock size={14} className="text-emerald-500" /> RLS & Privacidade
+                    </button>
+                  </div>
+                </div>
+
+                {/* Privacy & RLS Info Drawer/Modal */}
+                <AnimatePresence>
+                  {showRlsModal && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className={`p-6 rounded-3xl border space-y-4 ${
+                        isAdminDarkMode ? 'bg-[#0f172a] border-slate-800 text-white' : 'bg-amber-50/40 border-amber-200/60 text-gray-900'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500">
+                            <ShieldCheck size={22} />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-black tracking-tight uppercase text-emerald-500">
+                              Configuração de Segurança RLS (Row Level Security) e Privacidade
+                            </h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">
+                              Conforme as regras do Baza Rápido, o rastreamento é 100% anonimizado sem registar endereços IP nem credenciais de utilizador.
+                            </p>
+                          </div>
+                        </div>
+                        <button onClick={() => setShowRlsModal(false)} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-lg">
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      <div className="bg-slate-900 text-emerald-400 p-4 rounded-2xl font-mono text-[11px] overflow-x-auto space-y-1 shadow-inner">
+                        <p className="text-gray-400">-- Script de configuração de RLS no Supabase PostgreSQL</p>
+                        <p><span className="text-blue-400">CREATE TABLE IF NOT EXISTS</span> public.analytics_accesses (</p>
+                        <p className="pl-4">id UUID <span className="text-amber-400">PRIMARY KEY DEFAULT</span> gen_random_uuid(),</p>
+                        <p className="pl-4">user_id UUID <span className="text-amber-400">REFERENCES</span> auth.users(id) <span className="text-amber-400">ON DELETE SET NULL</span>,</p>
+                        <p className="pl-4">session_id TEXT <span className="text-amber-400">NOT NULL</span>,</p>
+                        <p className="pl-4">page TEXT <span className="text-amber-400">NOT NULL</span>,</p>
+                        <p className="pl-4">device_type TEXT <span className="text-amber-400">NOT NULL</span>,</p>
+                        <p className="pl-4">browser TEXT <span className="text-amber-400">NOT NULL</span>,</p>
+                        <p className="pl-4">os TEXT <span className="text-amber-400">NOT NULL</span>,</p>
+                        <p className="pl-4">created_at TIMESTAMPTZ <span className="text-amber-400">DEFAULT</span> NOW()</p>
+                        <p>);</p>
+                        <p className="pt-2"><span className="text-blue-400">ALTER TABLE</span> public.analytics_accesses <span className="text-blue-400">ENABLE ROW LEVEL SECURITY</span>;</p>
+                        <p className="pt-2 text-gray-400">-- Permitir gravação anónima mantendo privacidade</p>
+                        <p><span className="text-blue-400">CREATE POLICY</span> "Permitir inserção anónima de acessos" <span className="text-blue-400">ON</span> public.analytics_accesses <span className="text-blue-400">FOR INSERT WITH CHECK</span> (true);</p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-gray-500 font-bold">
+                        <span>🔒 Dados encriptados e isolados via políticas de acesso PostgreSQL.</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`CREATE TABLE IF NOT EXISTS public.analytics_accesses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  session_id TEXT NOT NULL,
+  page TEXT NOT NULL,
+  device_type TEXT NOT NULL,
+  browser TEXT NOT NULL,
+  os TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.analytics_accesses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Permitir inserção anónima de acessos" ON public.analytics_accesses FOR INSERT WITH CHECK (true);`);
+                            showAlert('success', 'Script SQL copiado com sucesso!');
+                          }}
+                          className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold cursor-pointer transition-all flex items-center gap-1"
+                        >
+                          <Check size={12} /> Copiar SQL
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Metrics Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {/* Utilizadores Online */}
+                  <div className={`p-5 rounded-3xl border shadow-sm space-y-3 relative overflow-hidden ${
                     isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
                   }`}>
-                    <h3 className="text-base font-black tracking-tight font-display mb-4">Volume de Anúncios por Município</h3>
-                    <div className="h-72 w-full">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black tracking-tight uppercase text-gray-400">Utilizadores Online</span>
+                      <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500">
+                        <Activity size={20} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-black font-display tracking-tight text-emerald-500">
+                          {analyticsData?.onlineUsersCount || 1}
+                        </span>
+                        <span className="text-xs font-bold text-gray-400">activos agora</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 font-medium mt-1">
+                        Via Supabase Presence
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Total de Acessos */}
+                  <div className={`p-5 rounded-3xl border shadow-sm space-y-3 relative overflow-hidden ${
+                    isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black tracking-tight uppercase text-gray-400">Total de Acessos</span>
+                      <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500">
+                        <Globe size={20} />
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-3xl font-black font-display tracking-tight">
+                        {analyticsData?.totalAccesses || 0}
+                      </span>
+                      <p className="text-[11px] text-gray-400 font-medium mt-1">
+                        Hoje: {analyticsData?.accessesToday || 0} • 7d: {analyticsData?.accessesThisWeek || 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Novos Utilizadores */}
+                  <div className={`p-5 rounded-3xl border shadow-sm space-y-3 relative overflow-hidden ${
+                    isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black tracking-tight uppercase text-gray-400">Novos Utilizadores</span>
+                      <div className="p-2.5 rounded-2xl bg-blue-500/10 text-blue-500">
+                        <Users size={20} />
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-3xl font-black font-display tracking-tight text-blue-500">
+                        +{analyticsData?.newUsersThisMonth || 0}
+                      </span>
+                      <p className="text-[11px] text-gray-400 font-medium mt-1">
+                        Hoje: +{analyticsData?.newUsersToday || 0} • Esta Semana: +{analyticsData?.newUsersThisWeek || 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Dispositivo Principal */}
+                  <div className={`p-5 rounded-3xl border shadow-sm space-y-3 relative overflow-hidden ${
+                    isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black tracking-tight uppercase text-gray-400">Dispositivo Líder</span>
+                      <div className="p-2.5 rounded-2xl bg-purple-500/10 text-purple-500">
+                        <Smartphone size={20} />
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-2xl font-black font-display tracking-tight text-purple-500">
+                        {analyticsData?.deviceBreakdown[0]?.name || 'Mobile'} ({analyticsData?.deviceBreakdown[0]?.percentage || 0}%)
+                      </span>
+                      <p className="text-[11px] text-gray-400 font-medium mt-1">
+                        Maioria dos acessos via smartphone
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Charts Row: Growth AreaChart & Devices PieChart */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Growth Area Chart (2 cols) */}
+                  <div className={`lg:col-span-2 p-6 rounded-3xl border shadow-sm space-y-4 ${
+                    isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-base font-black tracking-tight font-display flex items-center gap-2">
+                          <TrendingUp size={18} className="text-amber-500" /> Gráfico de Crescimento de Acessos & Utilizadores
+                        </h3>
+                        <p className="text-xs text-gray-400 font-medium mt-0.5">
+                          Evolução diária de visualizações de página vs. novos registos na plataforma.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="h-72 w-full pt-2">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={cityAdsData}>
+                        <AreaChart data={analyticsData?.growthData || []}>
+                          <defs>
+                            <linearGradient id="colorAcessos" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.4}/>
+                              <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.0}/>
+                            </linearGradient>
+                            <linearGradient id="colorNovos" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10B981" stopOpacity={0.4}/>
+                              <stop offset="95%" stopColor="#10B981" stopOpacity={0.0}/>
+                            </linearGradient>
+                          </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke={isAdminDarkMode ? '#334155' : '#f1f5f9'} />
-                          <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} fontWeight="bold" />
+                          <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} fontWeight="bold" />
                           <YAxis stroke="#94a3b8" fontSize={11} fontWeight="bold" />
-                          <Tooltip />
-                          <Bar dataKey="value" fill="#F59E0B" radius={[8, 8, 0, 0]}>
-                            {cityAdsData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Bar>
-                        </BarChart>
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: isAdminDarkMode ? '#0f172a' : '#ffffff',
+                              borderRadius: '16px',
+                              border: 'none',
+                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                              fontSize: '12px',
+                              fontWeight: 'bold'
+                            }} 
+                          />
+                          <Area type="monotone" dataKey="acessos" name="Acessos a Páginas" stroke="#F59E0B" strokeWidth={3} fillOpacity={1} fill="url(#colorAcessos)" />
+                          <Area type="monotone" dataKey="novosUtilizadores" name="Novos Utilizadores" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorNovos)" />
+                          <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px', fontWeight: 'bold' }} />
+                        </AreaChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
 
-                  {/* Category breakdown stats (PieChart) */}
-                  <div className={`p-6 rounded-3xl border shadow-sm ${
+                  {/* Devices Distribution Donut Chart */}
+                  <div className={`p-6 rounded-3xl border shadow-sm space-y-4 ${
                     isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
                   }`}>
-                    <h3 className="text-base font-black tracking-tight font-display mb-4">Distribuição de Categorias</h3>
-                    <div className="h-72 w-full flex items-center justify-center relative">
+                    <div>
+                      <h3 className="text-base font-black tracking-tight font-display flex items-center gap-2">
+                        <Smartphone size={18} className="text-purple-500" /> Dispositivos Utilizados
+                      </h3>
+                      <p className="text-xs text-gray-400 font-medium mt-0.5">
+                        Proporção de acessos por categoria de hardware.
+                      </p>
+                    </div>
+
+                    <div className="h-52 w-full flex items-center justify-center relative">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={categories}
+                            data={analyticsData?.deviceBreakdown || []}
                             cx="50%"
                             cy="50%"
-                            innerRadius={60}
-                            outerRadius={90}
-                            paddingAngle={5}
-                            dataKey="ads_count"
+                            innerRadius={55}
+                            outerRadius={80}
+                            paddingAngle={6}
+                            dataKey="value"
                             nameKey="name"
                           >
-                            {categories.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            {(analyticsData?.deviceBreakdown || []).map((entry, index) => (
+                              <Cell key={`dev-cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
                           <Tooltip />
-                          <Legend />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
+
+                    <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+                      {(analyticsData?.deviceBreakdown || []).map((dev, idx) => (
+                        <div key={dev.name} className="flex items-center justify-between text-xs font-bold">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                            <span>{dev.name}</span>
+                          </div>
+                          <span className="text-gray-400">{dev.value} ({dev.percentage}%)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Breakdown by OS & Browsers */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* OS Breakdown */}
+                  <div className={`p-6 rounded-3xl border shadow-sm space-y-4 ${
+                    isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                  }`}>
+                    <h3 className="text-sm font-black tracking-tight uppercase text-amber-500 flex items-center gap-2">
+                      <Monitor size={16} /> Sistemas Operativos (OS)
+                    </h3>
+                    <div className="space-y-3">
+                      {(analyticsData?.osBreakdown || []).map((item) => (
+                        <div key={item.name} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold">
+                            <span>{item.name}</span>
+                            <span className="text-gray-400">{item.value} acessos ({item.percentage}%)</span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                              style={{ width: `${Math.max(item.percentage, 4)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Browser Breakdown */}
+                  <div className={`p-6 rounded-3xl border shadow-sm space-y-4 ${
+                    isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                  }`}>
+                    <h3 className="text-sm font-black tracking-tight uppercase text-blue-500 flex items-center gap-2">
+                      <Globe size={16} /> Navegadores de Internet
+                    </h3>
+                    <div className="space-y-3">
+                      {(analyticsData?.browserBreakdown || []).map((item) => (
+                        <div key={item.name} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold">
+                            <span>{item.name}</span>
+                            <span className="text-gray-400">{item.value} acessos ({item.percentage}%)</span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-blue-500 rounded-full transition-all duration-500" 
+                              style={{ width: `${Math.max(item.percentage, 4)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Online Presence Active Users Table */}
+                <div className={`p-6 rounded-3xl border shadow-sm space-y-4 ${
+                  isAdminDarkMode ? 'bg-[#1e293b] border-slate-800' : 'bg-white border-gray-100'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-black tracking-tight font-display flex items-center gap-2">
+                        <Zap size={18} className="text-emerald-500" /> Utilizadores Conectados em Tempo Real
+                      </h3>
+                      <p className="text-xs text-gray-400 font-medium mt-0.5">
+                        Lista ao vivo de sessões ativas transmitidas via Supabase Realtime Channels.
+                      </p>
+                    </div>
+                    <span className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-500 font-black rounded-full">
+                      {analyticsData?.onlineUsersCount || 1} online
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-gray-100 dark:border-slate-800 text-gray-400 uppercase tracking-wider font-black text-[10px]">
+                          <th className="py-3 px-4">Sessão (Anonimizada)</th>
+                          <th className="py-3 px-4">Página Actual</th>
+                          <th className="py-3 px-4">Dispositivo / OS</th>
+                          <th className="py-3 px-4">Navegador</th>
+                          <th className="py-3 px-4">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60 font-bold">
+                        {(analyticsData?.onlineUsersList || []).length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-6 text-center text-gray-400">
+                              <div className="flex items-center justify-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                                <span>A monitorizar nova sessão em tempo real...</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          (analyticsData?.onlineUsersList || []).map((u, idx) => (
+                            <tr key={u.session_id + '_' + idx} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="py-3.5 px-4 font-mono text-[11px] text-amber-500">
+                                {u.session_id.substring(0, 16)}...
+                              </td>
+                              <td className="py-3.5 px-4 font-black">
+                                <span className="px-2.5 py-1 bg-gray-100 dark:bg-slate-800 rounded-lg">
+                                  {u.page || '/'}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                {u.device_type} • {u.os}
+                              </td>
+                              <td className="py-3.5 px-4 text-gray-400">
+                                {u.browser}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Activo
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
@@ -2864,9 +3312,12 @@ CREATE POLICY "Apenas leitura permitida" ON system_logs FOR SELECT USING (true);
                 <div className="space-y-1.5">
                   <label className="text-gray-400">Número de Telefone</label>
                   <input 
-                    type="text" 
+                    type="tel" 
+                    inputMode="numeric"
+                    maxLength={9}
                     value={editingUser.phone}
-                    onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                    onChange={(e) => setEditingUser({ ...editingUser, phone: formatPhoneInput(e.target.value) })}
+                    placeholder="923456789"
                     className={`w-full px-4 py-3 rounded-2xl border focus:outline-none focus:ring-2 focus:ring-amber-500 ${
                       isAdminDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-gray-50 border-gray-100'
                     }`}
@@ -3249,6 +3700,98 @@ CREATE POLICY "Apenas leitura permitida" ON system_logs FOR SELECT USING (true);
         )}
       </AnimatePresence>
 
+      {/* Modal: Ler Mensagem do Centro de Ajuda */}
+      <AnimatePresence>
+        {selectedHelpMessage && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[999] p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`w-full max-w-lg p-6 rounded-3xl border shadow-2xl space-y-4 overflow-y-auto max-h-[90vh] ${
+                isAdminDarkMode ? 'bg-[#1e293b] border-slate-800 text-white' : 'bg-white border-gray-100 text-gray-800'
+              }`}
+            >
+              <div className="flex justify-between items-start border-b border-gray-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 bg-purple-100 text-purple-600 dark:bg-purple-950/60 dark:text-purple-300 rounded-2xl">
+                    <HelpCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold font-display">Mensagem do Centro de Ajuda</h3>
+                    <p className="text-xs text-gray-400 font-medium">Baza Rápido • Suporte</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedHelpMessage(null)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-gray-400"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs px-3 py-1 rounded-full font-black ${
+                    selectedHelpMessage.status === 'Lida' 
+                      ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300' 
+                      : 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300'
+                  }`}>
+                    Estado: {selectedHelpMessage.status}
+                  </span>
+                  <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
+                    <Clock size={12} />
+                    {new Date(selectedHelpMessage.created_at).toLocaleString('pt-PT')}
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-gray-50 dark:bg-slate-800/80 rounded-2xl space-y-1">
+                  <p className="text-[10px] uppercase font-black text-gray-400">Remetente</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedHelpMessage.user_name}</p>
+                  <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">{selectedHelpMessage.user_email}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase font-black text-gray-400">Assunto</p>
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-800/60 p-3 rounded-xl border border-gray-100 dark:border-slate-800">
+                    {selectedHelpMessage.assunto}
+                  </h4>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase font-black text-gray-400">Mensagem</p>
+                  <div className="p-4 bg-gray-50 dark:bg-slate-800/60 rounded-2xl border border-gray-100 dark:border-slate-800 text-xs text-gray-700 dark:text-gray-200 leading-relaxed font-medium whitespace-pre-wrap">
+                    {selectedHelpMessage.mensagem}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t border-gray-100 dark:border-slate-800">
+                {selectedHelpMessage.status === 'Pendente' && (
+                  <button
+                    onClick={async () => {
+                      await helpCenterService.markAsRead(selectedHelpMessage.id);
+                      setSelectedHelpMessage(prev => prev ? { ...prev, status: 'Lida' } : null);
+                      const updated = await helpCenterService.getAllMessagesForAdmin();
+                      setHelpMessages(updated);
+                    }}
+                    className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+                  >
+                    Marcar como Lida
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedHelpMessage(null)}
+                  className="px-6 py-3 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 font-bold text-xs rounded-2xl hover:bg-gray-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* 4. Modal: Editar Anúncio */}
       <AnimatePresence>
         {editingAd && (
@@ -3374,6 +3917,6 @@ CREATE POLICY "Apenas leitura permitida" ON system_logs FOR SELECT USING (true);
         )}
       </AnimatePresence>
 
-    </div>
+    </motion.div>
   );
 }

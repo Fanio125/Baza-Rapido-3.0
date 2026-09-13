@@ -3,6 +3,7 @@ import { Map, useMap, useMapsLibrary, Marker } from '@vis.gl/react-google-maps';
 import { Loader2, AlertTriangle, ShieldCheck, MapPin, CheckCircle2, Compass } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { isUserAdmin } from '../utils/authHelper';
 
 const darkMapStyle = [
   { elementType: "geometry", stylers: [{ color: "#242424" }] },
@@ -192,7 +193,7 @@ export default function MapComponent({ origin, destination, onRouteCalculated }:
     };
   }, []);
 
-  const isAdmin = user?.email === 'frankmanuel123.com@gmail.com';
+  const isAdmin = isUserAdmin(user);
   const anyError = isAdmin && (hasAuthError || hasLegacyApiError || hasBillingError || hasRequestDenied);
 
   return (

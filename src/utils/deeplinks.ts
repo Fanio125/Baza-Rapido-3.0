@@ -85,8 +85,118 @@ export function abrirTLeva(
 }
 
 /**
+ * Base template to open Bolt deep links.
+ */
+export function abrirBolt(
+  startLat: number,
+  startLon: number,
+  endLat: number,
+  endLon: number
+): void {
+  const appLink = `bolt://pickup?pickup[lat]=${startLat}&pickup[lng]=${startLon}&dropoff[lat]=${endLat}&dropoff[lng]=${endLon}`;
+  const webFallback = `https://bolt.eu`;
+  
+  const start = Date.now();
+  setTimeout(() => {
+    if (Date.now() - start < 1500) {
+      window.location.href = webFallback;
+    }
+  }, 1000);
+  
+  window.location.href = appLink;
+}
+
+/**
+ * Base template to open inDrive deep links.
+ */
+export function abrirInDrive(
+  _startLat: number,
+  _startLon: number,
+  _endLat: number,
+  _endLon: number
+): void {
+  const appLink = `indrive://`;
+  const webFallback = `https://indrive.com`;
+  
+  const start = Date.now();
+  setTimeout(() => {
+    if (Date.now() - start < 1500) {
+      window.location.href = webFallback;
+    }
+  }, 1000);
+  
+  window.location.href = appLink;
+}
+
+/**
+ * Base template to open UGO deep links.
+ */
+export function abrirUGO(
+  _startLat: number,
+  _startLon: number,
+  _endLat: number,
+  _endLon: number
+): void {
+  const appLink = `ugo://`;
+  const webFallback = `https://ugotaxi.ao`;
+  
+  const start = Date.now();
+  setTimeout(() => {
+    if (Date.now() - start < 1500) {
+      window.location.href = webFallback;
+    }
+  }, 1000);
+  
+  window.location.href = appLink;
+}
+
+/**
+ * Base template to open Vambanzar deep links.
+ */
+export function abrirVambanzar(
+  _startLat: number,
+  _startLon: number,
+  _endLat: number,
+  _endLon: number
+): void {
+  const appLink = `vambazar://`;
+  const webFallback = `https://vambanzar.com`;
+  
+  const start = Date.now();
+  setTimeout(() => {
+    if (Date.now() - start < 1500) {
+      window.location.href = webFallback;
+    }
+  }, 1000);
+  
+  window.location.href = appLink;
+}
+
+/**
+ * Base template to open Anda deep links.
+ */
+export function abrirAnda(
+  _startLat: number,
+  _startLon: number,
+  _endLat: number,
+  _endLon: number
+): void {
+  const appLink = `anda://ride`;
+  const webFallback = `https://play.google.com/store/apps/details?id=com.anda.passenger`;
+  
+  const start = Date.now();
+  setTimeout(() => {
+    if (Date.now() - start < 1500) {
+      window.location.href = webFallback;
+    }
+  }, 1000);
+  
+  window.location.href = appLink;
+}
+
+/**
  * Main dispatcher to route deep links based on the specific application ID.
- * Supports: 'yango', 'uber', 'heetch', 'tleva'
+ * Supports the official apps: 'yango', 'bolt', 'indrive', 'uber', 'heetch', 'ugo', 'tleva', 'vambazar', 'anda'
  */
 export function triggerDeepLink(
   appId: string,
@@ -120,19 +230,32 @@ export function triggerDeepLink(
     case 'yango':
       abrirYango(startLat, startLon, endLat, endLon);
       break;
+    case 'bolt':
+      abrirBolt(startLat, startLon, endLat, endLon);
+      break;
+    case 'indrive':
+      abrirInDrive(startLat, startLon, endLat, endLon);
+      break;
     case 'uber':
       abrirUber(startLat, startLon, endLat, endLon);
       break;
     case 'heetch':
       abrirHeetch(startLat, startLon, endLat, endLon);
       break;
+    case 'ugo':
+      abrirUGO(startLat, startLon, endLat, endLon);
+      break;
     case 'tleva':
       abrirTLeva(startLat, startLon, endLat, endLon);
       break;
+    case 'vambazar':
+      abrirVambanzar(startLat, startLon, endLat, endLon);
+      break;
+    case 'anda':
+      abrirAnda(startLat, startLon, endLat, endLon);
+      break;
     default:
       console.warn(`Deep link dispatch generic fallback for App: ${appId}`);
-      // Fallback for unknown or unsupported app types
-      // Try Yango first since we are in Luanda context, or tell console
       abrirYango(startLat, startLon, endLat, endLon);
       break;
   }

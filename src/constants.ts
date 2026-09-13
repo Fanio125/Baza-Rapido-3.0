@@ -134,6 +134,21 @@ export const TAXI_APPS: TaxiApp[] = [
     deeplink: 'vambazar://',
     playStore: 'https://play.google.com/store/apps/details?id=com.vambazar.passenger',
     appStore: 'https://apps.apple.com/ao/app/vambazar/id1566864147',
+  },
+  {
+    id: 'anda',
+    name: 'Anda',
+    logo: '/anda_logo.jpg',
+    rating: 4.7,
+    carType: 'Económico / Moto',
+    basePrice: 350,
+    pricePerKm: 190,
+    waitingTime: 3,
+    travelTimeFactor: 0.9,
+    paymentMethods: ['Dinheiro', 'Multicaixa Express', 'Unitel Money'],
+    deeplink: 'anda://',
+    playStore: 'https://play.google.com/store/apps/details?id=com.anda.passenger',
+    appStore: 'https://apps.apple.com/ao/app/anda/id1600000000',
   }
 ];
 

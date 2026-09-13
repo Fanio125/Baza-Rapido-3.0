@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import PrivacySection from '../components/PrivacySection';
+import HelpCenterSection from '../components/HelpCenterSection';
 
-const PrivacyPage: React.FC = () => {
+const HelpCenterPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <PrivacySection 
+    <HelpCenterSection 
       onNavigate={(view) => {
         if (view === 'home') navigate('/');
         else navigate(`/${view}`);
@@ -15,4 +15,4 @@ const PrivacyPage: React.FC = () => {
   );
 };
 
-export default PrivacyPage;
+export default HelpCenterPage;

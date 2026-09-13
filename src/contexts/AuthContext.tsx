@@ -55,20 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Check if there is a demo session in localStorage first
-    const savedDemo = localStorage.getItem('demo_user');
-    if (savedDemo) {
-      try {
-        const parsed = JSON.parse(savedDemo);
-        setUser(parsed.user);
-        setSession(parsed.session);
-        setIsDemo(true);
-        setLoading(false);
-        return;
-      } catch (e) {
-        localStorage.removeItem('demo_user');
-      }
-    }
+    // Clear any residual demo session
+    localStorage.removeItem('demo_user');
 
     // Set up global error and unhandled promise rejection listeners to catch invalid refresh token errors
     const handleGlobalError = (event: PromiseRejectionEvent | ErrorEvent) => {
@@ -101,13 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!localStorage.getItem('demo_user')) {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
     }).catch(err => {
-      console.warn("Supabase initial session fetch failed (offline or blocked):", err);
+      console.warn("Supabase initial session fetch failed:", err);
       const errMsg = String(err?.message || err || '').toLowerCase();
       if (
         errMsg.includes('refresh token') || 
@@ -119,18 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         setSession(null);
       }
-      if (!localStorage.getItem('demo_user')) {
-        setLoading(false);
-      }
+      setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!localStorage.getItem('demo_user')) {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => {
@@ -153,27 +135,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInAsDemo = (fullName = 'Utilizador Demo', phone = '923456789', email = 'demo@bazarapido.com') => {
-    const demoUser = {
-      id: 'demo-user-id',
-      email,
-      user_metadata: {
-        full_name: fullName,
-        phone,
-      },
-      aud: 'authenticated',
-      role: 'authenticated',
-    } as unknown as User;
-
-    const demoSession = {
-      user: demoUser,
-      access_token: 'demo-access-token',
-    } as unknown as Session;
-
-    localStorage.setItem('demo_user', JSON.stringify({ user: demoUser, session: demoSession }));
-    setIsDemo(true);
-    setUser(demoUser);
-    setSession(demoSession);
+  const signInAsDemo = () => {
+    // Demo accounts are disabled in production - system strictly requires real Supabase auth
+    console.warn("Conta demo desativada. O sistema funciona apenas com utilizadores reais do Supabase.");
   };
 
   const updateUserMetadata = async (metadata: { 
@@ -183,31 +147,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     avatar_url?: string;
     photo_url?: string;
   }) => {
-    if (isDemo) {
-      const updatedUser = {
-        ...user,
-        user_metadata: {
-          ...user?.user_metadata,
-          ...metadata,
-        }
-      } as unknown as User;
-
-      const updatedSession = {
-        ...session,
-        user: updatedUser,
-      } as unknown as Session;
-
-      localStorage.setItem('demo_user', JSON.stringify({ user: updatedUser, session: updatedSession }));
-      setUser(updatedUser);
-      setSession(updatedSession);
-    } else {
-      const { data, error } = await supabase.auth.updateUser({
-        data: metadata
-      });
-      if (error) throw error;
-      if (data.user) {
-        setUser(data.user);
-      }
+    const { data, error } = await supabase.auth.updateUser({
+      data: metadata
+    });
+    if (error) throw error;
+    if (data.user) {
+      setUser(data.user);
     }
   };
 

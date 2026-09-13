@@ -44,11 +44,8 @@ export const rideHistoryService = {
   /**
    * Fetches the entire ride history for the authenticated user, descending.
    */
-  async getHistory(userId: string, isDemo: boolean): Promise<RideHistory[]> {
-    // Return local if in demo
-    if (isDemo || userId === 'demo-user-id') {
-      return getLocalHistory().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }
+  async getHistory(userId: string): Promise<RideHistory[]> {
+    if (!userId) return [];
 
     try {
       const { data, error } = await supabase
@@ -58,14 +55,12 @@ export const rideHistoryService = {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('Erro ao aceder à tabela ride_history no Supabase (cair em fallback local):', error.message);
-        // Fallback to local filtering for this user
+        console.warn('Erro ao aceder à tabela ride_history no Supabase:', error.message);
         return getLocalHistory()
           .filter(r => r.user_id === userId)
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       }
 
-      // Sync local storage with DB data to ensure offline availability
       if (data) {
         const otherUsersHistory = getLocalHistory().filter(r => r.user_id !== userId);
         const mappedData: RideHistory[] = data.map(item => ({
@@ -93,7 +88,6 @@ export const rideHistoryService = {
       console.warn('Erro de rede ou Supabase:', err);
     }
 
-    // Default fallback
     return getLocalHistory()
       .filter(r => r.user_id === userId)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -102,20 +96,19 @@ export const rideHistoryService = {
   /**
    * Saves or inserts a new ride history record.
    */
-  async saveRide(ride: Omit<RideHistory, 'id' | 'created_at'>, isDemo: boolean): Promise<RideHistory> {
+  async saveRide(ride: Omit<RideHistory, 'id' | 'created_at'>): Promise<RideHistory> {
     const newRide: RideHistory = {
       ...ride,
-      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      id: crypto.randomUUID ? crypto.randomUUID() : 'ride_' + Date.now(),
       created_at: new Date().toISOString()
     };
 
-    // Store in local storage as reliable tier
     const currentLocal = getLocalHistory();
     saveLocalHistory([newRide, ...currentLocal]);
 
-    if (!isDemo && ride.user_id !== 'demo-user-id') {
+    if (ride.user_id) {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('ride_history')
           .insert([{
             id: newRide.id,
@@ -133,22 +126,16 @@ export const rideHistoryService = {
             destino_lng: newRide.destino_lng,
             app_name: newRide.app_name,
             created_at: newRide.created_at
-          }])
-          .select()
-          .single();
+          }]);
 
         if (error) {
-          console.warn('Supabase insert failed (kept local only):', error.message);
-        } else if (data) {
-          // Update local version with ID from DB if necessary
-          // But our local UUID is already valid and perfect
+          console.warn('Supabase insert failed:', error.message);
         }
       } catch (err) {
         console.warn('Erro ao guardar no Supabase:', err);
       }
     }
 
-    // Custom event to trigger real-time UI refresh
     window.dispatchEvent(new CustomEvent('ride-history-updated'));
     return newRide;
   },
@@ -156,8 +143,7 @@ export const rideHistoryService = {
   /**
    * Updates the status of a ride (e.g., from 'Em andamento' to 'Concluída' or 'Cancelada')
    */
-  async updateRideStatus(rideId: string, status: 'Concluída' | 'Cancelada' | 'Em andamento', userId: string, isDemo: boolean): Promise<boolean> {
-    // Local Update
+  async updateRideStatus(rideId: string, status: 'Concluída' | 'Cancelada' | 'Em andamento', userId: string): Promise<boolean> {
     const currentLocal = getLocalHistory();
     const index = currentLocal.findIndex(r => r.id === rideId);
     if (index !== -1) {
@@ -167,7 +153,7 @@ export const rideHistoryService = {
 
     let success = true;
 
-    if (!isDemo && userId !== 'demo-user-id') {
+    if (userId) {
       try {
         const { error } = await supabase
           .from('ride_history')

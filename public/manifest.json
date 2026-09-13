@@ -1,9 +1,10 @@
 {
-  "name": "Baza Rápido",
-  "short_name": "Baza",
-  "description": "Comparador de preços de táxi em Luanda (Yango, Bolt, Uber)",
+  "name": "Baza Barato",
+  "short_name": "Baza Barato",
+  "description": "Plataforma de comparação de preços de táxi em Angola (Yango, Heetch, Bolt, inDrive, Uber, Anda, T'Leva, Vambazar, Ugo)",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#FFFFFF",
   "theme_color": "#FF6B00",
   "icons": [

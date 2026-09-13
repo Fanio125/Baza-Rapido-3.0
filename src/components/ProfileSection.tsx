@@ -12,7 +12,9 @@ import {
   ShieldCheck,
   Mail,
   Lock,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
@@ -22,6 +24,8 @@ import { LucideIcon } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
 import type { ViewState } from '../types';
+import { formatPhoneInput, validateAngolaPhone } from '../utils/phoneValidation';
+import { isUserAdmin } from '../utils/authHelper';
 
 interface ProfileSectionProps {
   user: User | null;
@@ -42,6 +46,7 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
   const { signOut, signInAsDemo } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -50,12 +55,13 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
 
   const baseMenuItems: MenuItem[] = [
     { icon: History, label: 'Histórico de Corridas', color: 'text-blue-500', bg: 'bg-blue-50', view: 'history' as ViewState },
-    { icon: HelpCircle, label: 'Centro de Ajuda', color: 'text-purple-500', bg: 'bg-purple-50' },
+    { icon: Heart, label: 'Locais Favoritos', color: 'text-rose-500', bg: 'bg-rose-50', view: 'favorites' as ViewState },
+    { icon: HelpCircle, label: 'Centro de Ajuda', color: 'text-purple-500', bg: 'bg-purple-50', view: 'help' as ViewState },
     { icon: MessageCircle, label: 'Suporte via WhatsApp', color: 'text-emerald-500', bg: 'bg-emerald-50', url: 'https://wa.me/975151548' },
     { icon: Settings, label: 'Configurações', color: 'text-gray-500', bg: 'bg-gray-50', view: 'settings' as ViewState },
   ];
 
-  const isAdmin = user?.email === 'frankmanuel123.com@gmail.com';
+  const isAdmin = isUserAdmin(user);
   const menuItems = isAdmin
     ? [
         { icon: ShieldCheck, label: 'Painel de Administração', color: 'text-amber-500', bg: 'bg-amber-50', view: 'admin' as any, badge: 'MÁSTER' },
@@ -85,10 +91,18 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
     const cleanFullName = fullName.trim();
     const cleanPhone = phone.trim();
 
-    if (mode === 'signup' && (!cleanFullName || !cleanPhone)) {
-      setError('Por favor, preenche o teu nome e número de telefone.');
-      setIsLoading(false);
-      return;
+    if (mode === 'signup') {
+      if (!cleanFullName || !cleanPhone) {
+        setError('Por favor, preenche o teu nome e número de telefone.');
+        setIsLoading(false);
+        return;
+      }
+      const phoneError = validateAngolaPhone(cleanPhone);
+      if (phoneError) {
+        setError(phoneError);
+        setIsLoading(false);
+        return;
+      }
     }
 
     if (!cleanEmail || !cleanPassword) {
@@ -101,11 +115,42 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
 
     try {
       if (mode === 'login') {
-        const { data, error } = await supabase.auth.signInWithPassword({ 
+        let { data, error } = await supabase.auth.signInWithPassword({ 
           email: cleanEmail, 
           password: cleanPassword 
         });
         
+        // Se for o administrador e a conta ainda não estiver criada no Supabase, provisionar com as credenciais submetidas
+        if (error && isUserAdmin({ email: cleanEmail } as User)) {
+          console.log("Tentando provisionar credenciais de administrador...");
+          const signUpRes = await supabase.auth.signUp({
+            email: cleanEmail,
+            password: cleanPassword,
+            options: {
+              data: {
+                full_name: 'Franklin Manuel (Administrador)',
+                phone: '923456789',
+              }
+            }
+          });
+
+          if (!signUpRes.error && signUpRes.data?.user) {
+            if (signUpRes.data.session) {
+              data = signUpRes.data as any;
+              error = null;
+            } else {
+              const retryLogin = await supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password: cleanPassword
+              });
+              if (!retryLogin.error && retryLogin.data?.session) {
+                data = retryLogin.data;
+                error = null;
+              }
+            }
+          }
+        }
+
         if (error) {
           console.log("Erro Supabase (Login):", {
             message: error.message,
@@ -117,8 +162,8 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
         
         console.log("Login realizado com sucesso! User ID:", data.user?.id);
         
-        // Se o utilizador logado for o administrador, garantir que ele entra primeiro na conta/profile
-        if (cleanEmail === 'frankmanuel123.com@gmail.com') {
+        // Se o utilizador logado for o administrador, permitir navegação inicial no perfil
+        if (isUserAdmin({ email: cleanEmail } as User)) {
           sessionStorage.setItem('bypass_admin_redirect', 'true');
         }
       } else {
@@ -223,9 +268,11 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
                   </div>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    maxLength={9}
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="900 000 000"
+                    onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                    placeholder="923 000 000"
                     className="w-full h-14 pl-16 pr-4 bg-gray-50 border-none rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     required
                   />
@@ -254,13 +301,21 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-14 pl-12 pr-4 bg-gray-50 border-none rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                className="w-full h-14 pl-12 pr-12 bg-gray-50 border-none rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 cursor-pointer"
+                title={showPassword ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
@@ -287,24 +342,6 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
             className="w-full text-center text-xs font-bold text-gray-400 hover:text-primary transition-colors py-1"
           >
             {mode === 'login' ? 'Não tens conta? Cria uma aqui' : 'Já tens conta? Entra aqui'}
-          </button>
-
-          <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-gray-100"></div>
-            <span className="flex-shrink mx-4 text-gray-400 text-[10px] font-black uppercase tracking-widest">ou</span>
-            <div className="flex-grow border-t border-gray-100"></div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => signInAsDemo(
-              fullName.trim() || 'Utilizador Demo', 
-              phone.trim() || '923456789', 
-              email.trim() || 'demo@bazarapido.com'
-            )}
-            className="w-full h-14 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all border border-orange-100"
-          >
-            Entrar com Conta de Demonstração
           </button>
         </form>
       </div>
@@ -399,8 +436,9 @@ export default function ProfileSection({ user, onNavigate }: ProfileSectionProps
         <span>Sair da Conta</span>
       </button>
 
-      <div className="text-center mt-8">
-        <p className="text-[10px] text-gray-400 font-black uppercase tracking-[.3em]">Baza Rápido • Conforto e Segurança</p>
+      <div className="text-center mt-8 space-y-1">
+        <p className="text-xs font-bold text-gray-500">Baza Barato</p>
+        <p className="text-[11px] text-gray-400 font-medium">"Não escolha só o mais barato. Escolha o melhor."</p>
       </div>
     </div>
   );

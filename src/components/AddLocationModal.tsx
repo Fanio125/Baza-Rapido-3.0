@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 import type { SavedLocationType } from '../types';
 import { useMapsLibrary, Map, Marker } from '@vis.gl/react-google-maps';
+import { isUserAdmin } from '../utils/authHelper';
 
 interface AddLocationModalProps {
   isOpen: boolean;
@@ -448,7 +449,7 @@ export default function AddLocationModal({ isOpen, onClose, onAdd, onLoginRedire
                 </motion.div>
               )}
 
-              {hasMapsError && user?.email === 'frankmanuel123.com@gmail.com' && (
+              {hasMapsError && isUserAdmin(user) && (
                 <div className="mb-5 bg-amber-50 border border-amber-200 p-3 rounded-2xl flex items-start gap-2 max-h-40 overflow-y-auto">
                   <span className="p-1 text-amber-700 bg-amber-100 rounded-lg font-bold shrink-0 text-xs">⚠️</span>
                   <div className="text-left">

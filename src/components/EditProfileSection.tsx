@@ -15,6 +15,7 @@ import {
   Upload
 } from 'lucide-react';
 import type { ViewState } from '../types';
+import { formatPhoneInput, validateAngolaPhone } from '../utils/phoneValidation';
 import { profileService } from '../services/profileService';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -418,6 +419,16 @@ export default function EditProfileSection({
   const handleSaveProfileData = async () => {
     setIsSaving(true);
     setMessage(null);
+
+    if (phone) {
+      const phoneError = validateAngolaPhone(phone);
+      if (phoneError) {
+        setMessage({ type: 'error', text: phoneError });
+        setIsSaving(false);
+        return;
+      }
+    }
+
     try {
       await updateUserMetadata({
         full_name: name,
@@ -648,8 +659,10 @@ export default function EditProfileSection({
                 </div>
                 <input 
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={9}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
                   placeholder="923 456 789"
                   className="w-full h-14 pl-12 pr-4 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-gray-300"
                 />

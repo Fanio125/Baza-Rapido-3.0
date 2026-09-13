@@ -13,44 +13,7 @@ const STORAGE_KEY = 'br_admin_notifications';
 export function getAdminNotifications(): AdminNotification[] {
   const data = localStorage.getItem(STORAGE_KEY);
   if (!data) {
-    // Return default mock notifications requested by the user
-    const now = new Date();
-    const mockNotifications: AdminNotification[] = [
-      {
-        id: 'notif-1',
-        category: 'API',
-        title: 'API conectada com sucesso',
-        description: 'Conexão estabelecida com os servidores de mapas e estimativas de tarifas.',
-        timestamp: now.toISOString(),
-        read: false
-      },
-      {
-        id: 'notif-2',
-        category: 'Erros',
-        title: 'Falha ao carregar anúncios',
-        description: 'Erro HTTP 500 ao tentar sincronizar as listagens de viagens do motorista.',
-        timestamp: new Date(now.getTime() - 2 * 60000).toISOString(),
-        read: false
-      },
-      {
-        id: 'notif-3',
-        category: 'Segurança',
-        title: 'Tentativa de acesso não autorizado',
-        description: 'Utilizador comum tentou aceder diretamente à rota restrita /admin.',
-        timestamp: new Date(now.getTime() - 5 * 60000).toISOString(),
-        read: false
-      },
-      {
-        id: 'notif-4',
-        category: 'Sistema',
-        title: 'Base de dados sincronizada',
-        description: 'Atualização concluída da tabela de utilizadores e cache local de tarifas.',
-        timestamp: new Date(now.getTime() - 10 * 60000).toISOString(),
-        read: true
-      }
-    ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockNotifications));
-    return mockNotifications;
+    return [];
   }
   try {
     return JSON.parse(data);

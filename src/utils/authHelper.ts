@@ -1,6 +1,20 @@
 import { User } from '@supabase/supabase-js';
 
 /**
+ * Official Administrator Email for Baza Rápido.
+ * Reads from VITE_ADMIN_EMAIL or defaults to franklin.manuel006@gmail.com.
+ */
+export const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'franklin.manuel006@gmail.com').trim().toLowerCase();
+
+/**
+ * Checks if a given user object or email belongs to the administrator.
+ */
+export function isUserAdmin(user: User | { email?: string | null } | null | undefined): boolean {
+  if (!user || !user.email) return false;
+  return user.email.trim().toLowerCase() === ADMIN_EMAIL;
+}
+
+/**
  * Helper function to verify if the logged-in user is an admin
  * and has complete profile data (full name and phone).
  * 
@@ -11,7 +25,7 @@ export function isAdminAuthenticated(user: User | null): boolean {
   if (!user) return false;
   
   // Verify if user email belongs to the admin
-  const isAdmin = user.email === 'frankmanuel123.com@gmail.com';
+  const isAdmin = isUserAdmin(user);
   if (!isAdmin) return false;
   
   // Verify if profile data is complete
@@ -35,7 +49,7 @@ export function getAdminAuthStatus(user: User | null): {
   needsRedirectToProfile: boolean;
 } {
   const isSessionActive = !!user;
-  const isAdmin = user?.email === 'frankmanuel123.com@gmail.com';
+  const isAdmin = isUserAdmin(user);
   
   if (!isSessionActive) {
     return {

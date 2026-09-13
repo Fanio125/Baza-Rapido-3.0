@@ -7,19 +7,30 @@ import { ComparisonResult, Location } from '../types';
  */
 export class RideService {
   /**
-   * Calculates estimates for all registered taxi apps.
-   * In the future, this method would call real APIs in parallel via Edge Functions.
+   * Calculates estimates by calling the secure backend endpoint /api/rides/compare.
+   * Fallback logic calculates client-side if network is offline or backend is unreachable.
    */
-   async getEstimates(origin: Location, destination: Location, realDistance?: number): Promise<ComparisonResult[]> {
-    // 1. Calculate distance (use real route distance if provided, otherwise fallback to straight line)
-    const distance = realDistance !== undefined ? realDistance : this.calculateDistance(origin, destination);
-    
-    // 2. Map through apps and calculate estimated prices
-    const estimates: ComparisonResult[] = TAXI_APPS.map(app => {
-      return this.calculateAppEstimate(app, distance);
-    });
+  async getEstimates(origin: Location, destination: Location, realDistance?: number): Promise<ComparisonResult[]> {
+    try {
+      const response = await fetch('/api/rides/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin, destination, realDistance }),
+      });
 
-    // 3. Post-process to mark winners
+      if (response.ok) {
+        const data = await response.json();
+        if (data && Array.isArray(data.results)) {
+          return data.results;
+        }
+      }
+    } catch (err) {
+      console.warn('Servidor backend indisponível. A utilizar cálculo local como fallback:', err);
+    }
+
+    // Fallback local calculation
+    const distance = realDistance !== undefined ? realDistance : this.calculateDistance(origin, destination);
+    const estimates: ComparisonResult[] = TAXI_APPS.map(app => this.calculateAppEstimate(app, distance));
     return this.calculateWinners(estimates);
   }
 

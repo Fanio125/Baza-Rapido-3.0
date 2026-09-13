@@ -79,7 +79,7 @@ export default function ComparisonList({ results, origin, destination, distance 
     };
 
     try {
-      const saved = await rideHistoryService.saveRide(rideData, isDemo);
+      const saved = await rideHistoryService.saveRide(rideData);
       setActiveSimRide(saved);
       // Trigger native/official mobile deep link redirection (with auto-fallback to Web if not installed)
       triggerDeepLink(item.appId, origin, destination);
@@ -96,10 +96,10 @@ export default function ComparisonList({ results, origin, destination, distance 
     setIsFinishing(true);
     setMessage(null);
 
-    const userId = user?.id || 'demo-user-id';
+    const userId = user?.id || '';
 
     try {
-      await rideHistoryService.updateRideStatus(activeSimRide.id, status, userId, isDemo);
+      await rideHistoryService.updateRideStatus(activeSimRide.id, status, userId);
       
       setMessage({ 
         type: 'success', 
@@ -119,130 +119,163 @@ export default function ComparisonList({ results, origin, destination, distance 
     }
   };
 
+  const [activeFilter, setActiveFilter] = useState<'all' | 'cheapest' | 'fastest' | 'rating'>('all');
+
+  // Filter and sort results based on user selection
+  const filteredResults = [...results].sort((a, b) => {
+    if (activeFilter === 'cheapest') return a.price - b.price;
+    if (activeFilter === 'fastest') return a.waitingTime - b.waitingTime;
+    if (activeFilter === 'rating') return b.rating - a.rating;
+    return 0;
+  });
+
   return (
     <div className="space-y-4 pb-20">
-      <div className="flex items-center justify-between px-2">
-        <h3 className="text-lg font-bold font-display">Resultados encontrados</h3>
-        <span className="text-xs font-medium text-gray-500">{results.length} serviços disponíveis</span>
+      {/* Header & Results Count */}
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-lg font-black font-display text-gray-900">
+          Resultados encontrados
+        </h3>
+        <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+          {results.length} táxis disponíveis
+        </span>
       </div>
 
-      {results.map((item, index) => (
-        <motion.div
-          key={item.appId}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          className={cn(
-            "premium-card p-5 relative overflow-hidden group",
-            item.isCheapest && "ring-2 ring-emerald-500/20",
-            item.isFastest && "ring-2 ring-blue-500/20",
-            item.isBestRated && "ring-2 ring-orange-500/20"
-          )}
-        >
-          {/* Badges */}
-          <div className="absolute top-0 right-5 flex gap-2">
-            {item.isCheapest && (
-              <div className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-b-lg flex items-center gap-1 uppercase tracking-wider">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                Mais Barato
-              </div>
+      {/* Filter Tabs requested by user */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-xs font-bold">
+        {[
+          { id: 'all', label: 'Todos' },
+          { id: 'cheapest', label: '🏷️ Mais barato' },
+          { id: 'fastest', label: '⚡ Mais rápido' },
+          { id: 'rating', label: '⭐ Melhor avaliação' }
+        ].map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setActiveFilter(f.id as any)}
+            className={cn(
+              "px-3.5 py-2 rounded-xl whitespace-nowrap transition-all select-none active:scale-95",
+              activeFilter === f.id
+                ? "bg-primary text-white shadow-md shadow-primary/20"
+                : "bg-gray-50 hover:bg-gray-100 text-gray-600"
             )}
-            {item.isFastest && (
-              <div className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-b-lg flex items-center gap-1 uppercase tracking-wider">
-                <Zap size={10} className="fill-blue-500" />
-                Mais Rápido
-              </div>
-            )}
-            {item.isBestRated && (
-              <div className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-1 rounded-b-lg flex items-center gap-1 uppercase tracking-wider">
-                <Award size={10} className="fill-orange-500" />
-                Melhor Avaliado
-              </div>
-            )}
-          </div>
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl border border-gray-100 overflow-hidden flex items-center justify-center bg-gray-50 group-hover:scale-105 transition-transform p-2">
-                <img 
-                  src={item.logo} 
-                  alt={item.name} 
-                  className={cn(
-                    "w-full h-full object-contain",
-                    item.appId === 'indrive' && "scale-125",
-                    item.appId === 'bolt' && "scale-125 object-cover",
-                    item.appId === 'uber' && "scale-125 object-cover",
-                    item.appId === 'heetch' && "scale-125 object-cover",
-                    item.appId === 'vambazar' && "scale-125 object-cover",
-                    item.appId === 'ugo' && "scale-125 object-cover",
-                    item.appId === 'tleva' && "scale-125 object-cover",
-                    item.appId === 'yango' && "scale-125 object-cover"
-                  )}
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">{item.name}</h4>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <div className="flex items-center gap-1 text-xs font-semibold text-gray-500">
-                    <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                    <span>{item.rating}</span>
+      {/* Cards List */}
+      <div className="space-y-3.5">
+        {filteredResults.map((item, index) => (
+          <motion.div
+            key={item.appId}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.06 }}
+            className={cn(
+              "bg-white rounded-3xl p-5 border transition-all duration-200 shadow-sm relative overflow-hidden",
+              item.isCheapest && activeFilter === 'all' && "border-emerald-500/40 ring-2 ring-emerald-500/10",
+              item.isFastest && activeFilter === 'all' && "border-blue-500/40 ring-2 ring-blue-500/10",
+              item.isBestRated && activeFilter === 'all' && "border-amber-500/40 ring-2 ring-amber-500/10",
+              !item.isCheapest && !item.isFastest && !item.isBestRated && "border-gray-100 hover:border-gray-200"
+            )}
+          >
+            {/* Badges Top Bar */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+              {/* App logo + Name */}
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl border border-gray-100 bg-gray-50 p-1.5 flex items-center justify-center shrink-0">
+                  <img 
+                    src={item.logo} 
+                    alt={item.name} 
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-base text-gray-900 leading-tight">{item.name}</h4>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-xs font-bold text-gray-700 flex items-center gap-0.5">
+                      <Star size={12} className="fill-amber-400 text-amber-400" />
+                      {item.rating}
+                    </span>
+                    <span className="text-gray-300">•</span>
+                    <span className="text-[11px] font-medium text-gray-500">{item.carType}</span>
                   </div>
-                  <span className="text-[10px] text-gray-300">•</span>
-                  <span className="text-xs font-medium text-gray-400">{item.carType}</span>
+                </div>
+              </div>
+
+              {/* Distinction pill badge */}
+              <div>
+                {item.isCheapest && (
+                  <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-wide">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Mais Barato
+                  </span>
+                )}
+                {item.isFastest && !item.isCheapest && (
+                  <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-blue-100 uppercase tracking-wide">
+                    <Zap size={10} className="fill-blue-500" />
+                    Mais Rápido
+                  </span>
+                )}
+                {item.isBestRated && !item.isCheapest && !item.isFastest && (
+                  <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-amber-100 uppercase tracking-wide">
+                    <Award size={10} className="fill-amber-500" />
+                    Top Avaliado
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Price Highlight Section */}
+            <div className="py-2.5 px-3 bg-gray-50/70 rounded-2xl mb-3 flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-black font-display text-gray-900 tracking-tight leading-none">
+                  {item.price.toLocaleString('pt-AO')} <span className="text-xs font-bold text-gray-500">Kz</span>
+                </div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                  Preço Estimado
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="flex items-center gap-1 text-xs font-bold text-gray-700 justify-end">
+                  <Clock size={13} className="text-primary" />
+                  <span>~ {item.waitingTime} min</span>
+                </div>
+                <div className="text-[10px] font-medium text-gray-500 mt-0.5">
+                  Chegada estimada
                 </div>
               </div>
             </div>
-            
-            <div className="text-right">
-              <div className="text-xl font-bold text-gray-900 leading-none">
-                {item.price.toLocaleString('pt-AO')} <span className="text-xs font-medium">Kz</span>
-              </div>
-              <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Preço Estimado</div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-gray-50 rounded-xl p-2 flex flex-col items-center justify-center">
-              <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Chegada</span>
-              <div className="flex items-center gap-1 mt-0.5">
-                <Clock size={12} className="text-primary" />
-                <span className="text-xs font-bold">{item.waitingTime} min</span>
-              </div>
+            {/* Details row: Car & Payment */}
+            <div className="flex items-center justify-between text-xs text-gray-500 font-medium px-1 mb-4">
+              <span>{item.carType} • {item.paymentMethods.join(' / ')}</span>
+              <span className="text-[11px] text-gray-400">Viagem: ~{item.travelTime} min</span>
             </div>
-            <div className="bg-gray-50 rounded-xl p-2 flex flex-col items-center justify-center">
-              <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Viagem</span>
-              <div className="flex items-center gap-1 mt-0.5">
-                <Navigation2 size={12} className="text-blue-500" />
-                <span className="text-xs font-bold">{item.travelTime} min</span>
-              </div>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-2 flex flex-col items-center justify-center">
-              <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Pagamento</span>
-              <div className="flex items-center gap-1 mt-0.5">
-                <CheckCircle2 size={12} className="text-emerald-500" />
-                <span className="text-[10px] font-bold truncate max-w-[50px]">{item.paymentMethods[0]}</span>
-              </div>
-            </div>
-          </div>
 
-          <button 
-            type="button"
-            onClick={() => handleStartSimulatedRide(item)}
-            disabled={isStarting}
-            className="w-full btn-primary py-3 hover:scale-[1.01] active:scale-95 transition-all text-sm font-bold flex items-center justify-center gap-2"
-          >
-            {isStarting ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <>
-                <span>Abrir {item.name}</span>
-                <ArrowUpRight size={18} />
-              </>
-            )}
-          </button>
-        </motion.div>
-      ))}
+            {/* Main Action Button: [ Abrir app ] */}
+            <button 
+              type="button"
+              onClick={() => handleStartSimulatedRide(item)}
+              disabled={isStarting}
+              className="w-full btn-primary py-3.5 rounded-2xl hover:scale-[1.01] active:scale-95 transition-all text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-primary/20"
+            >
+              {isStarting ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <>
+                  <span>Abrir app ({item.name})</span>
+                  <ArrowUpRight size={18} />
+                </>
+              )}
+            </button>
+          </motion.div>
+        ))}
+      </div>
 
       {/* Beautiful Simulated Ride Modal Overlay */}
       <AnimatePresence>

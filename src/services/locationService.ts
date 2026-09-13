@@ -1,32 +1,25 @@
 import { supabase } from '../lib/supabase';
-import type { SavedLocation, SavedLocationType } from '../types';
+import type { SavedLocation } from '../types';
 
-const DEMO_LOCATIONS_KEY = 'demo_saved_locations';
+const LOCAL_LOCATIONS_KEY = 'br_saved_locations';
 
-const getDemoLocations = (): SavedLocation[] => {
+const getLocalLocations = (): SavedLocation[] => {
   try {
-    const data = localStorage.getItem(DEMO_LOCATIONS_KEY);
+    const data = localStorage.getItem(LOCAL_LOCATIONS_KEY);
     return data ? JSON.parse(data) : [];
   } catch (e) {
     return [];
   }
 };
 
-const saveDemoLocations = (locations: SavedLocation[]) => {
-  localStorage.setItem(DEMO_LOCATIONS_KEY, JSON.stringify(locations));
+const saveLocalLocations = (locations: SavedLocation[]) => {
+  try {
+    localStorage.setItem(LOCAL_LOCATIONS_KEY, JSON.stringify(locations));
+  } catch (e) {}
 };
 
 export const locationService = {
   async getCurrentUser() {
-    const savedDemo = localStorage.getItem('demo_user');
-    if (savedDemo) {
-      try {
-        const parsed = JSON.parse(savedDemo);
-        if (parsed?.user) return parsed.user;
-      } catch (e) {
-        // ignore
-      }
-    }
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) throw new Error('Utilizador não autenticado');
@@ -38,9 +31,6 @@ export const locationService = {
 
   async getSavedLocations(userId: string) {
     if (!userId) return [];
-    if (userId === 'demo-user-id') {
-      return getDemoLocations();
-    }
     try {
       const { data, error } = await supabase
         .from('saved_locations')
@@ -49,47 +39,36 @@ export const locationService = {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('Could not fetch saved locations from Supabase. Falling back to local storage.', error.message);
-        return getDemoLocations().filter(loc => loc.user_id === userId);
+        console.warn('Could not fetch saved locations from Supabase:', error.message);
+        return getLocalLocations().filter(loc => loc.user_id === userId);
       }
-      return data as SavedLocation[];
+      if (data) {
+        const otherUsersLocs = getLocalLocations().filter(loc => loc.user_id !== userId);
+        saveLocalLocations([...otherUsersLocs, ...(data as SavedLocation[])]);
+        return data as SavedLocation[];
+      }
+      return getLocalLocations().filter(loc => loc.user_id === userId);
     } catch (err) {
-      console.warn('Network error fetching locations from Supabase. Falling back to local storage.', err);
-      return getDemoLocations().filter(loc => loc.user_id === userId);
+      console.warn('Network error fetching locations from Supabase:', err);
+      return getLocalLocations().filter(loc => loc.user_id === userId);
     }
   },
 
   async addSavedLocation(location: Omit<SavedLocation, 'id' | 'created_at' | 'user_id'>) {
-    let user;
-    try {
-      user = await this.getCurrentUser();
-    } catch (err) {
-      // Direct validation fallback if Supabase getUser fails but they are demo/guest representation
-      const savedDemo = localStorage.getItem('demo_user');
-      if (savedDemo) {
-        user = JSON.parse(savedDemo).user;
-      } else {
-        throw err;
-      }
-    }
+    const user = await this.getCurrentUser();
 
-    if (user.id === 'demo-user-id') {
-      const demoLocs = getDemoLocations();
-      const newLoc: SavedLocation = {
-        ...location,
-        id: `demo-loc-${Date.now()}`,
-        user_id: user.id,
-        created_at: new Date().toISOString()
-      };
-      demoLocs.unshift(newLoc);
-      saveDemoLocations(demoLocs);
-      return newLoc;
-    }
+    const newLoc: SavedLocation = {
+      ...location,
+      id: crypto.randomUUID ? crypto.randomUUID() : 'loc_' + Date.now(),
+      user_id: user.id,
+      created_at: new Date().toISOString()
+    };
 
-    console.log('Attempting to save location to Supabase for user:', user.id);
-    
+    const currentLocal = getLocalLocations();
+    saveLocalLocations([newLoc, ...currentLocal]);
+
     try {
-      const { data, error, status, statusText } = await supabase
+      const { data, error } = await supabase
         .from('saved_locations')
         .insert([{
           ...location,
@@ -98,61 +77,25 @@ export const locationService = {
         .select()
         .single();
 
-      if (error) {
-        console.warn('Supabase Error saving location. Falling back to local storage:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          status,
-          statusText
-        });
-        const demoLocs = getDemoLocations();
-        const newLoc: SavedLocation = {
-          ...location,
-          id: `local-fallback-loc-${Date.now()}`,
-          user_id: user.id,
-          created_at: new Date().toISOString()
-        };
-        demoLocs.unshift(newLoc);
-        saveDemoLocations(demoLocs);
-        return newLoc;
+      if (!error && data) {
+        return data as SavedLocation;
       }
-      
-      console.log('Location saved successfully:', data);
-      return data as SavedLocation;
     } catch (err) {
-      console.warn('Network or database exception in addSavedLocation. Falling back to local storage:', err);
-      const demoLocs = getDemoLocations();
-      const newLoc: SavedLocation = {
-        ...location,
-        id: `local-fallback-loc-${Date.now()}`,
-        user_id: user.id,
-        created_at: new Date().toISOString()
-      };
-      demoLocs.unshift(newLoc);
-      saveDemoLocations(demoLocs);
-      return newLoc;
+      console.warn('Error saving location to Supabase:', err);
     }
+
+    return newLoc;
   },
 
   async updateSavedLocation(id: string, location: Partial<SavedLocation>) {
-    const savedDemo = localStorage.getItem('demo_user');
-    const isDemo = savedDemo ? JSON.parse(savedDemo)?.user?.id === 'demo-user-id' : false;
-
-    if (isDemo || id.startsWith('demo-loc-') || id.startsWith('local-fallback-loc-')) {
-      const demoLocs = getDemoLocations();
-      const updated = demoLocs.map(loc => {
-        if (loc.id === id) {
-          return { ...loc, ...location };
-        }
-        return loc;
-      });
-      saveDemoLocations(updated);
-      const found = updated.find(loc => loc.id === id);
-      if (!found) throw new Error('Localização não encontrada');
-      return found;
-    }
+    const currentLocal = getLocalLocations();
+    const updated = currentLocal.map(loc => {
+      if (loc.id === id) {
+        return { ...loc, ...location };
+      }
+      return loc;
+    });
+    saveLocalLocations(updated);
 
     try {
       const { data, error } = await supabase
@@ -162,65 +105,30 @@ export const locationService = {
         .select()
         .single();
 
-      if (error) {
-        console.warn('Supabase update failed. Falling back to local storage:', error.message);
-        const demoLocs = getDemoLocations();
-        const updated = demoLocs.map(loc => {
-          if (loc.id === id) {
-            return { ...loc, ...location };
-          }
-          return loc;
-        });
-        saveDemoLocations(updated);
-        const found = updated.find(loc => loc.id === id);
-        if (!found) throw new Error('Localização não encontrada');
-        return found;
+      if (!error && data) {
+        return data as SavedLocation;
       }
-      return data as SavedLocation;
     } catch (err) {
-      console.warn('Network or database exception in updateSavedLocation. Falling back to local storage:', err);
-      const demoLocs = getDemoLocations();
-      const updated = demoLocs.map(loc => {
-        if (loc.id === id) {
-          return { ...loc, ...location };
-        }
-        return loc;
-      });
-      saveDemoLocations(updated);
-      const found = updated.find(loc => loc.id === id);
-      if (!found) throw new Error('Localização não encontrada');
-      return found;
+      console.warn('Error updating location in Supabase:', err);
     }
+
+    const found = updated.find(loc => loc.id === id);
+    if (!found) throw new Error('Localização não encontrada');
+    return found;
   },
 
   async deleteSavedLocation(id: string) {
-    const savedDemo = localStorage.getItem('demo_user');
-    const isDemo = savedDemo ? JSON.parse(savedDemo)?.user?.id === 'demo-user-id' : false;
-
-    if (isDemo || id.startsWith('demo-loc-') || id.startsWith('local-fallback-loc-')) {
-      const demoLocs = getDemoLocations();
-      const filtered = demoLocs.filter(loc => loc.id !== id);
-      saveDemoLocations(filtered);
-      return;
-    }
+    const currentLocal = getLocalLocations();
+    const filtered = currentLocal.filter(loc => loc.id !== id);
+    saveLocalLocations(filtered);
 
     try {
-      const { error } = await supabase
+      await supabase
         .from('saved_locations')
         .delete()
         .eq('id', id);
-
-      if (error) {
-        console.warn('Supabase delete failed. Falling back to local storage:', error.message);
-        const demoLocs = getDemoLocations();
-        const filtered = demoLocs.filter(loc => loc.id !== id);
-        saveDemoLocations(filtered);
-      }
     } catch (err) {
-      console.warn('Network or database exception in deleteSavedLocation. Falling back to local storage:', err);
-      const demoLocs = getDemoLocations();
-      const filtered = demoLocs.filter(loc => loc.id !== id);
-      saveDemoLocations(filtered);
+      console.warn('Error deleting location from Supabase:', err);
     }
   }
 };
