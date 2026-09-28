@@ -24,11 +24,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   useEffect(() => {
-    const root = window.document.body;
+    const docEl = window.document.documentElement;
+    const bodyEl = window.document.body;
     if (theme === 'dark') {
-      root.classList.add('dark');
+      docEl.classList.add('dark');
+      bodyEl.classList.add('dark');
     } else {
-      root.classList.remove('dark');
+      docEl.classList.remove('dark');
+      bodyEl.classList.remove('dark');
     }
     
     try {

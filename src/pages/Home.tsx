@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Bell, Zap, TrendingUp, ArrowRight, MapPin, History, Building2 } from 'lucide-react';
+import { Bell, Zap, TrendingUp, ArrowRight, MapPin, History, Building2, Moon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import SearchSection from '../components/SearchSection';
 import SavedLocationsSection from '../components/SavedLocationsSection';
 import { useNavigate } from 'react-router-dom';
@@ -31,6 +32,7 @@ interface GroupedRoute {
 
 const Home: React.FC = () => {
   const { user, isDemo } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [selectedDestinationAddr, setSelectedDestinationAddr] = useState("");
   const [selectedOriginAddr, setSelectedOriginAddr] = useState("");
@@ -284,19 +286,32 @@ const Home: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-6">
-      {/* Greeting & Slogan */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-black font-display tracking-tight text-gray-900">
-          Olá, <span className="text-primary">
-            {user 
-              ? ((user.user_metadata?.full_name?.trim().split(/\s+/)[0]) || user.email?.split('@')[0]) 
-              : 'Viajante'}
-          </span> 👋
-        </h1>
-        <p className="text-lg font-bold text-gray-800 font-display">Para onde vamos?</p>
-        <p className="text-xs text-gray-400 font-medium">
-          "Não escolha só o mais barato. Escolha o melhor."
-        </p>
+      {/* Greeting & Slogan with Dark Mode Toggle */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 flex-1 min-w-0">
+          <h1 className="text-2xl font-black font-display tracking-tight text-gray-900 dark:text-white">
+            Olá, <span className="text-primary">
+              {user 
+                ? ((user.user_metadata?.full_name?.trim().split(/\s+/)[0]) || user.email?.split('@')[0]) 
+                : 'Viajante'}
+            </span> 👋
+          </h1>
+          <p className="text-lg font-bold text-gray-800 dark:text-gray-200 font-display">Para onde vamos?</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 font-medium">
+            "Não escolha só o mais barato. Escolha o melhor."
+          </p>
+        </div>
+
+        {/* Dark Mode - Apenas o ícone da lua */}
+        <button
+          type="button"
+          id="toggle-dark-mode-btn"
+          onClick={toggleTheme}
+          aria-label="Modo escuro"
+          className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-90 text-gray-700 dark:text-amber-400 transition-all border border-gray-200/80 dark:border-slate-700 shadow-xs flex items-center justify-center shrink-0 cursor-pointer"
+        >
+          <Moon size={22} className={theme === 'dark' ? 'text-amber-400 fill-amber-400/20' : 'text-gray-700'} />
+        </button>
       </div>
 
       {/* Main Search Card */}
